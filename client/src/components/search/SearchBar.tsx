@@ -13,7 +13,7 @@ const SearchBar = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   
   const { data: searchResults, isLoading } = useQuery<ShowSearchResult[]>({
-    queryKey: ['/api/search', searchQuery],
+    queryKey: [`/api/search?q=${encodeURIComponent(searchQuery || '')}`, searchQuery],
     enabled: searchQuery.length > 2,
   });
   
