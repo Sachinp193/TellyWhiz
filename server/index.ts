@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+export default app;
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
