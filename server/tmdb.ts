@@ -2,7 +2,7 @@ import axios from "axios";
 import { storage } from "./storage";
 
 // TMDB API configuration
-const TMDB_API_KEY = process.env.TMDB_API_KEY || "4315a29cd09f70fa8b47fb8f432d8841";
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_API_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 
