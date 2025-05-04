@@ -4,7 +4,8 @@ import { storage } from "./storage";
 // TVdb API configuration
 const TVDB_API_KEY = process.env.TVDB_API_KEY || "yourtvdbapikey";
 const TVDB_API_URL = "https://api.thetvdb.com/v4";
-const PIN = process.env.TVDB_PIN || "yourtvdbpin";
+// For v4 of the API, we need to update the auth method as PIN is not required
+const PIN = "";
 
 let accessToken: string | null = null;
 let tokenExpiry: number = 0;
@@ -19,14 +20,18 @@ const api = axios.create({
 
 // Interceptor to add authorization header
 api.interceptors.request.use(async (config) => {
-  const token = await getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const token = await getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (error) {
+    console.error("Failed to get access token for request:", error);
   }
   return config;
 });
 
-async function getAccessToken(): Promise<string> {
+async function getAccessToken(): Promise<string | null> {
   const now = Date.now();
   
   // If we have a valid token, return it
@@ -38,7 +43,6 @@ async function getAccessToken(): Promise<string> {
     // Get a new token
     const response = await axios.post(`${TVDB_API_URL}/login`, {
       apikey: TVDB_API_KEY,
-      pin: PIN,
     });
     
     if (response.data?.data?.token) {
