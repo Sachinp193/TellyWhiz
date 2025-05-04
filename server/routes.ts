@@ -237,9 +237,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Popular & Discovery APIs
   app.get("/api/shows/popular", async (req, res) => {
     try {
-      const genre = req.query.genre as string | undefined;
-      const shows = await storage.getPopularShows(12, genre);
-      res.json(shows);
+      // Check if we have shows in the database
+      const existingShows = await storage.getPopularShows(5);
+      if (existingShows && existingShows.length > 0) {
+        const genre = req.query.genre as string | undefined;
+        const shows = await storage.getPopularShows(12, genre);
+        return res.json(shows);
+      }
+      
+      // If no shows in database, fetch them from TMDB
+      const popularResponse = await fetch(`https://api.themoviedb.org/3/tv/popular?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`);
+      const popularData = await popularResponse.json();
+      
+      if (!popularData.results) {
+        return res.status(500).json({ message: "Failed to get shows from TMDB" });
+      }
+      
+      // Process and save each show
+      const shows = await Promise.all(
+        popularData.results.slice(0, 12).map(async (show: any) => {
+          // Get additional details
+          const details = await tvdb.getShowDetails(show.id);
+          return details;
+        })
+      );
+      
+      return res.json(shows);
     } catch (error) {
       console.error("Popular shows error:", error);
       res.status(500).json({ message: "Failed to get popular shows" });
@@ -248,8 +271,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/shows/recent", async (req, res) => {
     try {
-      const shows = await storage.getRecentShows(12);
-      res.json(shows);
+      // Check if we have shows in the database
+      const existingShows = await storage.getRecentShows(5);
+      if (existingShows && existingShows.length > 0) {
+        const shows = await storage.getRecentShows(12);
+        return res.json(shows);
+      }
+      
+      // If no shows in database, fetch them from TMDB
+      const airingResponse = await fetch(
+        `https://api.themoviedb.org/3/tv/on_the_air?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
+      );
+      const airingData = await airingResponse.json();
+      
+      if (!airingData.results) {
+        return res.status(500).json({ message: "Failed to get shows from TMDB" });
+      }
+      
+      // Process and save each show
+      const shows = await Promise.all(
+        airingData.results.slice(0, 12).map(async (show: any) => {
+          // Get additional details
+          const details = await tvdb.getShowDetails(show.id);
+          return details;
+        })
+      );
+      
+      return res.json(shows);
     } catch (error) {
       console.error("Recent shows error:", error);
       res.status(500).json({ message: "Failed to get recent shows" });
@@ -258,9 +306,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/shows/top-rated", async (req, res) => {
     try {
-      const genre = req.query.genre as string | undefined;
-      const shows = await storage.getTopRatedShows(12, genre);
-      res.json(shows);
+      // Check if we have shows in the database
+      const existingShows = await storage.getTopRatedShows(5);
+      if (existingShows && existingShows.length > 0) {
+        const genre = req.query.genre as string | undefined;
+        const shows = await storage.getTopRatedShows(12, genre);
+        return res.json(shows);
+      }
+      
+      // If no shows in database, fetch them from TMDB
+      const topRatedResponse = await fetch(
+        `https://api.themoviedb.org/3/tv/top_rated?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
+      );
+      const topRatedData = await topRatedResponse.json();
+      
+      if (!topRatedData.results) {
+        return res.status(500).json({ message: "Failed to get shows from TMDB" });
+      }
+      
+      // Process and save each show
+      const shows = await Promise.all(
+        topRatedData.results.slice(0, 12).map(async (show: any) => {
+          // Get additional details
+          const details = await tvdb.getShowDetails(show.id);
+          return details;
+        })
+      );
+      
+      return res.json(shows);
     } catch (error) {
       console.error("Top rated shows error:", error);
       res.status(500).json({ message: "Failed to get top rated shows" });
@@ -269,8 +342,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/genres", async (req, res) => {
     try {
-      const genres = await storage.getAllGenres();
-      res.json(genres);
+      // First check if we have genres in the database
+      const dbGenres = await storage.getAllGenres();
+      if (dbGenres && dbGenres.length > 0) {
+        return res.json(dbGenres);
+      }
+      
+      // If not, fetch from TMDB
+      const genresResponse = await fetch(
+        `https://api.themoviedb.org/3/genre/tv/list?api_key=${process.env.TMDB_API_KEY}&language=en-US`
+      );
+      const genresData = await genresResponse.json();
+      
+      if (!genresData.genres) {
+        return res.status(500).json({ message: "Failed to get genres from TMDB" });
+      }
+      
+      // Map to our format
+      const genres = genresData.genres.map((genre: any) => genre.name);
+      
+      return res.json(genres);
     } catch (error) {
       console.error("Genres error:", error);
       res.status(500).json({ message: "Failed to get genres" });
