@@ -66,7 +66,10 @@ export const tvdb = {
       }));
     } catch (error) {
       console.error("TMDB search error:", error);
-      return [];
+      if (error instanceof Error) {
+        throw new Error(`Failed to search shows on TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to search shows on TMDB due to an unknown error.");
     }
   },
   
@@ -174,7 +177,10 @@ export const tvdb = {
       return seasons;
     } catch (error) {
       console.error("TMDB seasons error:", error);
-      return [];
+      if (error instanceof Error) {
+        throw new Error(`Failed to get seasons from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get seasons from TMDB due to an unknown error.");
     }
   },
   
@@ -230,7 +236,10 @@ export const tvdb = {
       return episodes;
     } catch (error) {
       console.error("TMDB episodes error:", error);
-      return [];
+      if (error instanceof Error) {
+        throw new Error(`Failed to get episodes from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get episodes from TMDB due to an unknown error.");
     }
   },
   
@@ -250,7 +259,94 @@ export const tvdb = {
       }));
     } catch (error) {
       console.error("TMDB cast error:", error);
-      return [];
+      if (error instanceof Error) {
+        throw new Error(`Failed to get cast from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get cast from TMDB due to an unknown error.");
+    }
+  },
+
+  async getPopularShowsFromTMDB() {
+    try {
+      const response = await api.get(`/tv/popular`, {
+        params: {
+          language: "en-US",
+          page: 1,
+        },
+      });
+      if (!response.data?.results) {
+        throw new Error("Invalid response structure from TMDB for popular shows");
+      }
+      return response.data.results;
+    } catch (error) {
+      console.error("TMDB getPopularShowsFromTMDB error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to get popular shows from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get popular shows from TMDB due to an unknown error.");
+    }
+  },
+
+  async getRecentShowsFromTMDB() {
+    try {
+      const response = await api.get(`/tv/on_the_air`, {
+        params: {
+          language: "en-US",
+          page: 1,
+        },
+      });
+      if (!response.data?.results) {
+        throw new Error("Invalid response structure from TMDB for recent shows");
+      }
+      return response.data.results;
+    } catch (error) {
+      console.error("TMDB getRecentShowsFromTMDB error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to get recent shows from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get recent shows from TMDB due to an unknown error.");
+    }
+  },
+
+  async getTopRatedShowsFromTMDB() {
+    try {
+      const response = await api.get(`/tv/top_rated`, {
+        params: {
+          language: "en-US",
+          page: 1,
+        },
+      });
+      if (!response.data?.results) {
+        throw new Error("Invalid response structure from TMDB for top-rated shows");
+      }
+      return response.data.results;
+    } catch (error) {
+      console.error("TMDB getTopRatedShowsFromTMDB error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to get top-rated shows from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get top-rated shows from TMDB due to an unknown error.");
+    }
+  },
+
+  async getGenresFromTMDB() {
+    try {
+      const response = await api.get(`/genre/tv/list`, {
+        params: {
+          language: "en-US",
+        },
+      });
+      if (!response.data?.genres) {
+        throw new Error("Invalid response structure from TMDB for genres");
+      }
+      // Map to our format (array of names)
+      return response.data.genres.map((genre: any) => genre.name);
+    } catch (error) {
+      console.error("TMDB getGenresFromTMDB error:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to get genres from TMDB: ${error.message}`);
+      }
+      throw new Error("Failed to get genres from TMDB due to an unknown error.");
     }
   },
 };
