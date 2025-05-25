@@ -1,12 +1,12 @@
 {
-  "version": 2, // Added this line
+  "version": 2,
 
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
 
   "functions": {
-    "server/index.ts": {
+    "api/index.ts": { // CHANGED THIS LINE: From "server/index.ts" to "api/index.ts"
       "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 30
@@ -16,7 +16,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/index.ts"
+      "dest": "/api/index.ts" // CHANGED THIS LINE: From "/server/index.ts" to "/api/index.ts"
     },
     {
       "src": "/(.*)",
