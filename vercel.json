@@ -5,7 +5,7 @@
 
   "functions": {
     "server/index.ts": {
-      "runtime": "@vercel/node@3", // Changed from @vercel/node@3.x to @vercel/node@3
+      "runtime": "@vercel/node@3",
       "memory": 1024,
       "maxDuration": 30
     }
