@@ -18,7 +18,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Shows table
 export const shows = pgTable("shows", {
   id: serial("id").primaryKey(),
-  tvdbId: integer("tvdb_id").notNull().unique(),
+  tmdbId: integer("tmdb_id").notNull().unique(),
   name: text("name").notNull(),
   overview: text("overview"),
   status: text("status"),
@@ -39,7 +39,7 @@ export const insertShowSchema = createInsertSchema(shows);
 // Seasons table
 export const seasons = pgTable("seasons", {
   id: serial("id").primaryKey(),
-  tvdbId: integer("tvdb_id").notNull(),
+  tmdbId: integer("tmdb_id").notNull(),
   showId: integer("show_id").notNull().references(() => shows.id, { onDelete: "cascade" }),
   number: integer("number").notNull(),
   name: text("name"),
@@ -54,7 +54,7 @@ export const insertSeasonSchema = createInsertSchema(seasons);
 // Episodes table
 export const episodes = pgTable("episodes", {
   id: serial("id").primaryKey(),
-  tvdbId: integer("tvdb_id").notNull(),
+  tmdbId: integer("tmdb_id").notNull(),
   showId: integer("show_id").notNull().references(() => shows.id, { onDelete: "cascade" }),
   seasonId: integer("season_id").notNull().references(() => seasons.id, { onDelete: "cascade" }),
   name: text("name").notNull(),

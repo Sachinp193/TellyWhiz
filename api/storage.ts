@@ -28,15 +28,15 @@ export const storage = {
   },
 
   // Show operations
-  getShowByTvdbId: async (tvdbId: number) => {
+  getShowByTmdbId: async (tmdbId: number) => {
     return await db.query.shows.findFirst({
-      where: eq(shows.tvdbId, tvdbId),
+      where: eq(shows.tmdbId, tmdbId),
     });
   },
 
   saveShow: async (showData: any) => {
     const existingShow = await db.query.shows.findFirst({
-      where: eq(shows.tvdbId, showData.tvdbId),
+      where: eq(shows.tmdbId, showData.tmdbId),
     });
 
     if (existingShow) {
@@ -80,24 +80,24 @@ export const storage = {
 
   saveSeasons: async (seasonData: any[]) => {
     const uniqueSeasons: any[] = [];
-    const seasonTvdbIds = new Set();
+    const seasonTmdbIds = new Set();
 
     for (const season of seasonData) {
-      if (!seasonTvdbIds.has(season.tvdbId)) {
+      if (!seasonTmdbIds.has(season.tmdbId)) {
         uniqueSeasons.push(season);
-        seasonTvdbIds.add(season.tvdbId);
+        seasonTmdbIds.add(season.tmdbId);
       }
     }
 
     if (uniqueSeasons.length === 0) return [];
 
     const existingSeasons = await db.query.seasons.findMany({
-      where: inArray(seasons.tvdbId, uniqueSeasons.map(s => s.tvdbId)),
+      where: inArray(seasons.tmdbId, uniqueSeasons.map(s => s.tmdbId)),
     });
 
-    const existingTvdbIds = new Set(existingSeasons.map(s => s.tvdbId));
+    const existingTmdbIds = new Set(existingSeasons.map(s => s.tmdbId));
 
-    const seasonsToCreate = uniqueSeasons.filter(s => !existingTvdbIds.has(s.tvdbId));
+    const seasonsToCreate = uniqueSeasons.filter(s => !existingTmdbIds.has(s.tmdbId));
 
     if (seasonsToCreate.length > 0) {
       return await db.insert(seasons).values(seasonsToCreate).returning();
@@ -116,24 +116,24 @@ export const storage = {
 
   saveEpisodes: async (episodeData: any[]) => {
     const uniqueEpisodes: any[] = [];
-    const episodeTvdbIds = new Set();
+    const episodeTmdbIds = new Set();
 
     for (const episode of episodeData) {
-      if (!episodeTvdbIds.has(episode.tvdbId)) {
+      if (!episodeTmdbIds.has(episode.tmdbId)) {
         uniqueEpisodes.push(episode);
-        episodeTvdbIds.add(episode.tvdbId);
+        episodeTmdbIds.add(episode.tmdbId);
       }
     }
 
     if (uniqueEpisodes.length === 0) return [];
 
     const existingEpisodes = await db.query.episodes.findMany({
-      where: inArray(episodes.tvdbId, uniqueEpisodes.map(e => e.tvdbId)),
+      where: inArray(episodes.tmdbId, uniqueEpisodes.map(e => e.tmdbId)),
     });
 
-    const existingTvdbIds = new Set(existingEpisodes.map(e => e.tvdbId));
+    const existingTmdbIds = new Set(existingEpisodes.map(e => e.tmdbId));
 
-    const episodesToCreate = uniqueEpisodes.filter(e => !existingTvdbIds.has(e.tvdbId));
+    const episodesToCreate = uniqueEpisodes.filter(e => !existingTmdbIds.has(e.tmdbId));
 
     if (episodesToCreate.length > 0) {
       return await db.insert(episodes).values(episodesToCreate).returning();
