@@ -113,7 +113,7 @@ export const tmdbClient = {
     console.log(`Calling TMDB API: ${endpoint}`);
     try {
       // First check if show exists in our database
-      let show = await storage.getShowByTvdbId(showId);
+      let show = await storage.getShowByTmdbId(showId);
       
       if (show) {
         console.log(`Show details for ID ${showId} found in local storage.`);
@@ -156,7 +156,7 @@ export const tmdbClient = {
       const yearRange = startYear === endYear ? `${startYear}` : `${startYear}-${endYear}`;
       
       const showData = {
-        tvdbId: data.id,
+        tmdbId: data.id,
         name: data.name,
         overview: data.overview,
         status: data.status,
@@ -221,7 +221,7 @@ export const tmdbClient = {
             console.log(`TMDB API call to ${seasonDetailEndpoint} succeeded.`);
             
             return {
-              tvdbId: season.id,
+              tmdbId: season.id,
               showId: showId,
               number: season.season_number,
               name: season.name,
@@ -295,7 +295,7 @@ export const tmdbClient = {
         
         return response.data.episodes.map((episode: any) => {
           return {
-            tvdbId: episode.id,
+            tmdbId: episode.id,
             showId: showId,
             seasonId: season.id, // This should be the database ID of the season
             name: episode.name,

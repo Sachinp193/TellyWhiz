@@ -58,8 +58,8 @@ describe('GET /api/search', () => {
 
   it('should return 200 and search results for a valid query', async () => {
     const mockShows = [
-      { id: 1, tvdb_id: 101, name: 'Test Show 1', overview: 'Overview 1', image: 'image1.jpg', year: '2023', first_aired: '2023-01-01', network: 'Network1', status: 'Running', runtime: 30, banner: 'banner1.jpg', rating: 8, genres: ['Drama'] },
-      { id: 2, tvdb_id: 102, name: 'Test Show 2', overview: 'Overview 2', image: 'image2.jpg', year: '2022', first_aired: '2022-01-01', network: 'Network2', status: 'Ended', runtime: 60, banner: 'banner2.jpg', rating: 9, genres: ['Comedy'] },
+      { id: 1, name: 'Test Show 1', overview: 'Overview 1', image: 'image1.jpg', year: '2023', first_aired: '2023-01-01', network: 'Network1', status: 'Running', runtime: 30, banner: 'banner1.jpg', rating: 8, genres: ['Drama'] },
+      { id: 2, name: 'Test Show 2', overview: 'Overview 2', image: 'image2.jpg', year: '2022', first_aired: '2022-01-01', network: 'Network2', status: 'Ended', runtime: 60, banner: 'banner2.jpg', rating: 9, genres: ['Comedy'] },
     ];
     // Now mock searchShows on the imported (and mocked) tmdbMockObject
     (tmdbMockObject.searchShows as vi.Mock).mockResolvedValue(mockShows);
@@ -67,8 +67,8 @@ describe('GET /api/search', () => {
     const response = await request(app).get('/api/search?q=ValidQuery');
 
     expect(response.status).toBe(200);
-    // The /api/search endpoint directly returns what tvdb.searchShows returns.
-    // It doesn't map tvdb_id to id.
+    // The /api/search endpoint directly returns what tmdbClient.searchShows returns.
+    // The id property is used as the TMDB ID.
     expect(response.body).toEqual(mockShows);
     expect(tmdbMockObject.searchShows).toHaveBeenCalledWith('ValidQuery');
   });
@@ -101,7 +101,7 @@ describe('POST /api/user/shows/:id/track', () => {
   let authenticatedAgent;
 
   const showToTrack = {
-    tvdbId: 123, 
+    tmdbId: 123, 
     name: "Test Show for Tracking",
     overview: "An overview.",
     status: "Running",
@@ -136,9 +136,9 @@ describe('POST /api/user/shows/:id/track', () => {
     (tmdbMockObject.getSeasons as vi.Mock).mockResolvedValue([]);
     // ... etc. for other methods if they might be called during app init for these specific tests.
 
-    // Option A: Mock tvdb.getShowDetails to also call storage.saveShow
+    // Option A: Mock tmdbClient.getShowDetails to also call storage.saveShow
     vi.spyOn(tmdbMockObject, 'getShowDetails').mockImplementation(async (showIdFromRoute) => {
-      if (showIdFromRoute === showToTrack.tvdbId) {
+      if (showIdFromRoute === showToTrack.tmdbId) {
         // Call the real storage.saveShow to ensure it's in the DB
         // This will insert or update the show in the 'shows' table.
         const savedShow = await storage.saveShow(showToTrack);
@@ -157,7 +157,7 @@ describe('POST /api/user/shows/:id/track', () => {
       await db.delete(schema.userShows).where(eq(schema.userShows.userId, userId));
     }
     // Only delete the specific show inserted by these tests
-    await db.delete(schema.shows).where(eq(schema.shows.tvdbId, showToTrack.tvdbId));
+    await db.delete(schema.shows).where(eq(schema.shows.tmdbId, showToTrack.tmdbId));
   });
 
   afterAll(async () => {
@@ -169,7 +169,7 @@ describe('POST /api/user/shows/:id/track', () => {
 
   it('should successfully track a new show for an authenticated user', async () => {
     const response = await authenticatedAgent
-      .post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+      .post(`/api/user/shows/${showToTrack.tmdbId}/track`);
 
     expect(response.status).toBe(200); // Assuming 200 for successful tracking
     expect(response.body).toMatchObject({
@@ -182,7 +182,7 @@ describe('POST /api/user/shows/:id/track', () => {
     // Assert Database State
     // 1. Check if the show was saved to the `shows` table
     const dbShow = await db.query.shows.findFirst({
-      where: eq(schema.shows.tvdbId, showToTrack.tvdbId),
+      where: eq(schema.shows.tmdbId, showToTrack.tmdbId),
     });
     expect(dbShow).toBeDefined();
     expect(dbShow.name).toBe(showToTrack.name);
@@ -197,15 +197,15 @@ describe('POST /api/user/shows/:id/track', () => {
 
   it('should return an error or handle gracefully when tracking an already tracked show', async () => {
     // First, track the show
-    await authenticatedAgent.post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+    await authenticatedAgent.post(`/api/user/shows/${showToTrack.tmdbId}/track`);
 
     // Then, attempt to track it again
     const response = await authenticatedAgent
-      .post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+      .post(`/api/user/shows/${showToTrack.tmdbId}/track`);
     
     // The current implementation of storage.trackShow simply inserts.
     // This will cause a unique constraint violation on (user_id, show_id) in user_shows if not handled.
-    // Or, if the show is inserted again by getShowDetails, it might violate unique tvdb_id on shows table.
+    // Or, if the show is inserted again by getShowDetails, it might violate unique tmdbId on shows table.
     // For now, let's expect a 500, as the application might not handle this gracefully yet.
     // A more robust API might return 409 Conflict or 200 OK (if idempotent).
     // Based on storage.ts, getShowDetails saves the show, and trackShow saves the userShow.
@@ -214,7 +214,7 @@ describe('POST /api/user/shows/:id/track', () => {
 
     // Let's check the actual behavior. The routes.ts uses storage.trackShow.
     // storage.trackShow does:
-    // const newShow = await getShowDetails(showId); // This showId is tvdb_id
+    // const newShow = await getShowDetails(showId); // This showId is tmdbId
     // ... insert into userShows ...
     // If the show is already in the DB, getShowDetails might return it or fetch again.
     // The crucial part is the insert into userShows. Drizzle's `db.insert()...` will fail on conflict.
@@ -223,7 +223,7 @@ describe('POST /api/user/shows/:id/track', () => {
     expect(response.body.message).toContain('Failed to track show'); // Or a more specific DB error message
 
     // Assert Database State: Ensure no duplicate userShows record
-    const dbShow = await db.query.shows.findFirst({ where: eq(schema.shows.tvdbId, showToTrack.tvdbId) });
+    const dbShow = await db.query.shows.findFirst({ where: eq(schema.shows.tmdbId, showToTrack.tmdbId) });
     if (!dbShow) throw new Error("Show not found after tracking for count assertion");
     const userShowsCountResult = await db.select({ count: sql<number>`count(*)` }).from(schema.userShows)
       .where(eq(schema.userShows.userId, userId) && eq(schema.userShows.showId, dbShow.id));
@@ -232,7 +232,7 @@ describe('POST /api/user/shows/:id/track', () => {
 
   it('should return 401 when trying to track a show without authentication', async () => {
     const response = await request(app) // Fresh, unauthenticated agent
-      .post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+      .post(`/api/user/shows/${showToTrack.tmdbId}/track`);
 
     expect(response.status).toBe(401);
     expect(response.body.message).toBe('Unauthorized');
