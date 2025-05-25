@@ -1,19 +1,28 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "server/index.ts",
-      "use": "@vercel/node"
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+
+  "functions": {
+    "server/index.ts": {
+      "runtime": "@vercel/node@3.x",
+      "memory": 1024,
+      "maxDuration": 30
     }
-  ],
+  },
+
   "routes": [
+    // Route for your API endpoints.
+    // Requests to /api/* will be handled by the serverless function defined by server/index.ts.
     {
       "src": "/api/(.*)",
-      "dest": "server/index.ts"
+      "dest": "/server/index.ts"
     },
+    // Route for your static client files.
+    // All other requests will be served from the 'dist' directory at the project root.
     {
       "src": "/(.*)",
-      "dest": "client/index.html"
+      "dest": "/dist/$1"
     }
   ]
 }
