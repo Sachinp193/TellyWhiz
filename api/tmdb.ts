@@ -1,6 +1,5 @@
 import axios, { AxiosError } from "axios";
 import { storage } from "./storage";
-import { log } from "./vite"; // Assuming 'log' is a suitable logger, or replace with console.log
 
 // TMDB API configuration
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -9,7 +8,10 @@ if (!TMDB_API_KEY) {
   console.error("CRITICAL ERROR: TMDB_API_KEY is not set in environment variables. TMDB API calls will fail.");
 }
 const TMDB_API_URL = "https://api.themoviedb.org/3";
-const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"; // Fallback
+
+let tmdbApiConfig: any = null;
+let dynamicImageBaseUrl: string = TMDB_IMAGE_BASE_URL; // Initialize with fallback
 
 const api = axios.create({
   baseURL: TMDB_API_URL,
@@ -21,6 +23,33 @@ const api = axios.create({
     "Accept": "application/json",
   },
 });
+
+async function getTmdbConfiguration() {
+  if (tmdbApiConfig) {
+    return tmdbApiConfig;
+  }
+  try {
+    console.log("Fetching TMDB API configuration...");
+    const response = await api.get("/configuration");
+    tmdbApiConfig = response.data;
+    if (tmdbApiConfig.images?.secure_base_url) {
+      dynamicImageBaseUrl = tmdbApiConfig.images.secure_base_url;
+    } else if (tmdbApiConfig.images?.base_url) {
+      dynamicImageBaseUrl = tmdbApiConfig.images.base_url;
+    }
+    // TODO: Could also fetch and store available image sizes here if needed in the future
+    // e.g., posterSizes = tmdbApiConfig.images.poster_sizes;
+    console.log(`TMDB configuration fetched. Image base URL: ${dynamicImageBaseUrl}`);
+    return tmdbApiConfig;
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    const status = axiosError.response?.status;
+    console.error(`Failed to fetch TMDB configuration${status ? ` with status ${status}` : ''}:`, error);
+    // Allow fallback to the hardcoded TMDB_IMAGE_BASE_URL
+    console.warn("Using fallback TMDB_IMAGE_BASE_URL due to configuration fetch error.");
+    return null; // Indicate that fetching failed, but allow fallback
+  }
+}
 
 // Map TMDB genres to our database genres
 const genreMap = new Map([
@@ -48,12 +77,13 @@ const genreMap = new Map([
 // Simulate TVDB API for development using TMDB API
 export const tmdbClient = {
   async searchShows(query: string) {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = "/search/tv";
     const queryParams = { query, include_adult: false, language: "en-US", page: 1 };
-    log(`Calling TMDB API: ${endpoint} with query: ${query}`);
+    console.log(`Calling TMDB API: ${endpoint} with query: ${query}`);
     try {
       const response = await api.get(endpoint, { params: queryParams });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data?.results) {
         return [];
@@ -63,7 +93,7 @@ export const tmdbClient = {
         id: item.id,
         name: item.name,
         overview: item.overview,
-        image: item.poster_path ? `${TMDB_IMAGE_BASE_URL}/w342${item.poster_path}` : null,
+        image: item.poster_path ? `${dynamicImageBaseUrl}w342${item.poster_path}` : null,
         year: item.first_air_date ? item.first_air_date.substring(0, 4) : "Unknown",
       }));
     } catch (error) {
@@ -78,26 +108,34 @@ export const tmdbClient = {
   },
   
   async getShowDetails(showId: number) {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = `/tv/${showId}`;
-    log(`Calling TMDB API: ${endpoint}`);
+    console.log(`Calling TMDB API: ${endpoint}`);
     try {
       // First check if show exists in our database
       let show = await storage.getShowByTvdbId(showId);
       
       if (show) {
-        log(`Show details for ID ${showId} found in local storage.`);
+        console.log(`Show details for ID ${showId} found in local storage.`);
+        // Ensure image and banner URLs are up-to-date if they exist, even for cached shows
+        if (show.image && show.image.startsWith(TMDB_IMAGE_BASE_URL)) { // Check if it's an old URL
+             show.image = show.image.replace(TMDB_IMAGE_BASE_URL, dynamicImageBaseUrl);
+        }
+        if (show.banner && show.banner.startsWith(TMDB_IMAGE_BASE_URL)) { // Check if it's an old URL
+             show.banner = show.banner.replace(TMDB_IMAGE_BASE_URL, dynamicImageBaseUrl);
+        }
         return show;
       }
       
       // If not in the database, fetch from TMDB
-      log(`Fetching show details for ID ${showId} from TMDB API: ${endpoint}`);
+      console.log(`Fetching show details for ID ${showId} from TMDB API: ${endpoint}`);
       const response = await api.get(endpoint, {
         params: {
           append_to_response: "external_ids,content_ratings",
           language: "en-US",
         },
       });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data) {
         throw new Error("Show not found");
@@ -125,8 +163,8 @@ export const tmdbClient = {
         firstAired: data.first_air_date,
         network: data.networks.length > 0 ? data.networks[0].name : "",
         runtime: data.episode_run_time.length > 0 ? data.episode_run_time[0] : 0,
-        image: data.poster_path ? `${TMDB_IMAGE_BASE_URL}/w342${data.poster_path}` : null,
-        banner: data.backdrop_path ? `${TMDB_IMAGE_BASE_URL}/original${data.backdrop_path}` : null,
+        image: data.poster_path ? `${dynamicImageBaseUrl}w342${data.poster_path}` : null,
+        banner: data.backdrop_path ? `${dynamicImageBaseUrl}original${data.backdrop_path}` : null,
         rating: data.vote_average,
         genres: genres,
         year: yearRange,
@@ -145,21 +183,28 @@ export const tmdbClient = {
   },
   
   async getSeasons(showId: number) {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const baseEndpoint = `/tv/${showId}`;
-    log(`Attempting to get seasons for show ID ${showId}.`);
+    console.log(`Attempting to get seasons for show ID ${showId}.`);
     try {
       // First check if seasons exist in our database
       let seasons = await storage.getSeasonsByShowId(showId);
       
       if (seasons && seasons.length > 0) {
-        log(`Seasons for show ID ${showId} found in local storage.`);
+        console.log(`Seasons for show ID ${showId} found in local storage.`);
+        // Ensure image URLs are up-to-date
+        seasons.forEach(s => {
+          if (s.image && s.image.startsWith(TMDB_IMAGE_BASE_URL)) {
+            s.image = s.image.replace(TMDB_IMAGE_BASE_URL, dynamicImageBaseUrl);
+          }
+        });
         return seasons;
       }
       
       // If not in the database, fetch from TMDB
-      log(`Fetching show (for seasons) for ID ${showId} from TMDB API: ${baseEndpoint}`);
+      console.log(`Fetching show (for seasons) for ID ${showId} from TMDB API: ${baseEndpoint}`);
       const response = await api.get(baseEndpoint);
-      log(`TMDB API call to ${baseEndpoint} (for seasons) succeeded.`);
+      console.log(`TMDB API call to ${baseEndpoint} (for seasons) succeeded.`);
       
       if (!response.data?.seasons) {
         return [];
@@ -170,10 +215,10 @@ export const tmdbClient = {
           .filter((season: any) => season.season_number > 0) // Skip specials season (0)
           .map(async (season: any) => {
             const seasonDetailEndpoint = `/tv/${showId}/season/${season.season_number}`;
-            log(`Calling TMDB API: ${seasonDetailEndpoint}`);
+            console.log(`Calling TMDB API: ${seasonDetailEndpoint}`);
             // Get additional season details
             const seasonResponse = await api.get(seasonDetailEndpoint);
-            log(`TMDB API call to ${seasonDetailEndpoint} succeeded.`);
+            console.log(`TMDB API call to ${seasonDetailEndpoint} succeeded.`);
             
             return {
               tvdbId: season.id,
@@ -181,7 +226,7 @@ export const tmdbClient = {
               number: season.season_number,
               name: season.name,
               overview: season.overview || "",
-              image: season.poster_path ? `${TMDB_IMAGE_BASE_URL}/w342${season.poster_path}` : null,
+              image: season.poster_path ? `${dynamicImageBaseUrl}w342${season.poster_path}` : null,
               episodes: season.episode_count,
               year: season.air_date ? season.air_date.substring(0, 4) : "",
             };
@@ -213,18 +258,25 @@ export const tmdbClient = {
   },
   
   async getEpisodes(showId: number) {
-    log(`Attempting to get episodes for show ID ${showId}.`);
+    await getTmdbConfiguration(); // Ensure config is fetched
+    console.log(`Attempting to get episodes for show ID ${showId}.`);
     try {
       // First check if episodes exist in our database
       let episodes = await storage.getEpisodesByShowId(showId);
       
       if (episodes && episodes.length > 0) {
-        log(`Episodes for show ID ${showId} found in local storage.`);
+        console.log(`Episodes for show ID ${showId} found in local storage.`);
+        // Ensure image URLs are up-to-date
+        episodes.forEach(e => {
+          if (e.image && e.image.startsWith(TMDB_IMAGE_BASE_URL)) {
+            e.image = e.image.replace(TMDB_IMAGE_BASE_URL, dynamicImageBaseUrl);
+          }
+        });
         return episodes;
       }
       
       // Need to make sure we have seasons first
-      const seasons = await this.getSeasons(showId); // getSeasons has its own logging
+      const seasons = await this.getSeasons(showId); // getSeasons will also call getTmdbConfiguration
       
       if (!seasons || seasons.length === 0) {
         return [];
@@ -233,9 +285,9 @@ export const tmdbClient = {
       // Fetch episodes for each season
       const episodesPromises = seasons.map(async (season) => {
         const endpoint = `/tv/${showId}/season/${season.number}`;
-        log(`Calling TMDB API: ${endpoint} (for episodes)`);
+        console.log(`Calling TMDB API: ${endpoint} (for episodes)`);
         const response = await api.get(endpoint);
-        log(`TMDB API call to ${endpoint} (for episodes) succeeded.`);
+        console.log(`TMDB API call to ${endpoint} (for episodes) succeeded.`);
         
         if (!response.data?.episodes) {
           return [];
@@ -245,14 +297,14 @@ export const tmdbClient = {
           return {
             tvdbId: episode.id,
             showId: showId,
-            seasonId: season.id,
+            seasonId: season.id, // This should be the database ID of the season
             name: episode.name,
             overview: episode.overview || "",
             seasonNumber: episode.season_number,
             episodeNumber: episode.episode_number,
             firstAired: episode.air_date,
             runtime: episode.runtime || 0,
-            image: episode.still_path ? `${TMDB_IMAGE_BASE_URL}/w300${episode.still_path}` : null,
+            image: episode.still_path ? `${dynamicImageBaseUrl}w300${episode.still_path}` : null,
             rating: episode.vote_average,
           };
         });
@@ -263,6 +315,8 @@ export const tmdbClient = {
       
       // Save to the database
       if (episodesData && episodesData.length > 0) {
+        // Need to ensure seasonId in episodesData matches the one from our DB after saving seasons
+        // This part might need adjustment if season.id from TMDB (used above) isn't what's stored/expected by storage.saveEpisodes
         episodes = await storage.saveEpisodes(episodesData);
       }
       
@@ -284,11 +338,12 @@ export const tmdbClient = {
   },
   
   async getCast(showId: number) {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = `/tv/${showId}/credits`;
-    log(`Calling TMDB API: ${endpoint}`);
+    console.log(`Calling TMDB API: ${endpoint}`);
     try {
       const response = await api.get(endpoint);
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data?.cast) {
         return [];
@@ -298,7 +353,7 @@ export const tmdbClient = {
         id: person.id,
         name: person.name,
         role: person.character,
-        image: person.profile_path ? `${TMDB_IMAGE_BASE_URL}/w185${person.profile_path}` : null,
+        image: person.profile_path ? `${dynamicImageBaseUrl}w185${person.profile_path}` : null,
       }));
     } catch (error) {
       const axiosError = error as AxiosError;
@@ -312,12 +367,13 @@ export const tmdbClient = {
   },
 
   async getPopularShowsFromTMDB() {
+    await getTmdbConfiguration(); // Ensure config is fetched, though not directly used for images here
     const endpoint = "/tv/popular";
     const queryParams = { language: "en-US", page: 1 };
-    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
+    console.log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
       const response = await api.get(endpoint, { params: queryParams });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for popular shows");
       }
@@ -334,12 +390,13 @@ export const tmdbClient = {
   },
 
   async getRecentShowsFromTMDB() {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = "/tv/on_the_air";
     const queryParams = { language: "en-US", page: 1 };
-    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
+    console.log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
       const response = await api.get(endpoint, { params: queryParams });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for recent shows");
       }
@@ -356,12 +413,13 @@ export const tmdbClient = {
   },
 
   async getTopRatedShowsFromTMDB() {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = "/tv/top_rated";
     const queryParams = { language: "en-US", page: 1 };
-    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
+    console.log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
       const response = await api.get(endpoint, { params: queryParams });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for top-rated shows");
       }
@@ -378,12 +436,13 @@ export const tmdbClient = {
   },
 
   async getGenresFromTMDB() {
+    await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = "/genre/tv/list";
     const queryParams = { language: "en-US" };
-    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
+    console.log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
       const response = await api.get(endpoint, { params: queryParams });
-      log(`TMDB API call to ${endpoint} succeeded.`);
+      console.log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.genres) {
         throw new Error("Invalid response structure from TMDB for genres");
       }

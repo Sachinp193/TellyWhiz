@@ -1,15 +1,15 @@
 import request from 'supertest';
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
 import app from '../index'; 
-import { tvdb as tmdbMockObject } from '../tmdb'; 
+import { tmdbClient as tmdbMockObject } from '../tmdb'; 
 import { storage } from '../storage'; // Import real storage
 import { db } from '../../db'; 
 import * as schema from '../../shared/schema'; 
 import { eq, sql } from 'drizzle-orm';
 
-// Mock the tmdb module, specifically the tvdb object and its methods
+// Mock the tmdb module, specifically the tmdbClient object and its methods
 vi.mock('../tmdb', () => ({
-  tvdb: {
+  tmdbClient: {
     searchShows: vi.fn(),
     getShowDetails: vi.fn(),
     getSeasons: vi.fn(),

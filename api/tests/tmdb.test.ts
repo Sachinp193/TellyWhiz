@@ -14,7 +14,7 @@ vi.mock('axios', () => ({
 }));
 
 // Now import tvdb. It will use the mocked axios.
-import { tvdb } from '../tmdb';
+import { tmdbClient as tvdb } from '../tmdb';
 
 // Mock storage module
 vi.mock('../storage', async (importOriginal) => {
