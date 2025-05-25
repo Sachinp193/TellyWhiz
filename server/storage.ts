@@ -142,7 +142,6 @@ export const storage = {
     return existingEpisodes;
   },
 
-  // User Show operations
   getUserShow: async (userId: number, showId: number) => {
     return await db.query.userShows.findFirst({
       where: and(
@@ -241,7 +240,6 @@ export const storage = {
     return userShowData.map(us => us.show);
   },
 
-  // User Episode operations
   getUserEpisode: async (userId: number, episodeId: number) => {
     return await db.query.userEpisodes.findFirst({
       where: and(
@@ -374,19 +372,18 @@ export const storage = {
     return list;
   },
 
-  // Popular and trending shows
+  // --- REVISED POPULAR AND TOP RATED SHOWS AGAIN ---
   getPopularShows: async (limit = 12, genre?: string) => {
-    const conditions = [];
+    const whereConditions = [];
+
     if (genre) {
-      conditions.push(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
+      whereConditions.push(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
     }
 
-    let query = db.select().from(shows);
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    
-    return await query.limit(limit).orderBy(desc(shows.rating));
+    return await db.select().from(shows)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .limit(limit)
+      .orderBy(desc(shows.rating));
   },
 
   getRecentShows: async (limit = 12) => {
@@ -396,17 +393,14 @@ export const storage = {
   },
 
   getTopRatedShows: async (limit = 12, genre?: string) => {
-    const conditions = [];
-    conditions.push(isNotNull(shows.rating)); // Always add this condition
+    const whereConditions = [isNotNull(shows.rating)]; // Always include this condition
 
     if (genre) {
-      conditions.push(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
+      whereConditions.push(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
     }
-    
-    let query = db.select().from(shows);
-    query = query.where(and(...conditions)); // Apply all conditions at once
 
-    return await query
+    return await db.select().from(shows)
+      .where(and(...whereConditions))
       .orderBy(desc(shows.rating))
       .limit(limit);
   },
