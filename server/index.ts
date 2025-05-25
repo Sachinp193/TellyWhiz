@@ -1,11 +1,50 @@
 import express, { type Request, Response, NextFunction } from "express";
+import pool from './db';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-export default app;
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.get('/api/test-db', async (req: Request, res: Response) => { // Added Request, Response types for clarity
+  try {
+    const client = await pool.connect(); // Get a client from the pool
+    const result = await client.query('SELECT NOW() as current_time');
+    client.release(); // Release the client back to the pool
+    console.log('Database connected successfully:', result.rows[0].current_time);
+    res.json({ message: 'Database connected!', time: result.rows[0].current_time });
+  } catch (err: any) {
+    console.error('Database connection error:', err.message);
+    res.status(500).json({ message: 'Failed to connect to database', error: err.message });
+  }
+});
+
+app.post('/api/users/:userId/series', async (req: Request, res: Response) => { // Added Request, Response types
+  const { userId } = req.params;
+  const { tvSeriesName, status } = req.body;
+
+  if (!tvSeriesName || !status) {
+    return res.status(400).json({ message: 'TV series name and status are required.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    const query = `
+      INSERT INTO user_tv_series (user_id, tv_series_name, status, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING *;
+    `;
+    const result = await client.query(query, [userId, tvSeriesName, status]);
+    client.release();
+    res.status(201).json(result.rows[0]);
+  } catch (err: any) {
+    if (client) client.release();
+    console.error('Error adding TV series:', err.message);
+    res.status(500).json({ message: 'Failed to add TV series', error: err.message });
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
