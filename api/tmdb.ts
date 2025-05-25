@@ -46,7 +46,7 @@ const genreMap = new Map([
 ]);
 
 // Simulate TVDB API for development using TMDB API
-export const tvdb = {
+export const tmdbClient = {
   async searchShows(query: string) {
     const endpoint = "/search/tv";
     const queryParams = { query, include_adult: false, language: "en-US", page: 1 };
