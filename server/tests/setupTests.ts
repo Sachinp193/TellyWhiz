@@ -2,13 +2,17 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env.test file if it exists, otherwise set a default
-// This ensures DATABASE_URL is set before any module that needs it is imported.
-dotenv.config({ path: path.resolve(__dirname, '.env.test') });
+// Load .env.test file if it exists from the project root.
+const projectRootEnvTestPath = path.join(__dirname, '..', '..', '.env.test');
+console.log(`[setupTests.ts] Attempting to load .env.test from: ${projectRootEnvTestPath}`);
+const result = dotenv.config({ path: projectRootEnvTestPath });
 
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://testuser:testpass@localhost:5432/testdb';
-  console.log('DATABASE_URL not found in .env.test, using default for testing.');
+if (result.error) {
+  console.error('[setupTests.ts] Error loading .env.test:', result.error);
+} else if (!result.parsed || !result.parsed.DATABASE_URL) {
+  console.error('[setupTests.ts] CRITICAL: DATABASE_URL not found in the loaded .env.test file or file is empty. Path:', projectRootEnvTestPath);
+} else {
+  console.log('[setupTests.ts] DATABASE_URL loaded successfully from .env.test:', process.env.DATABASE_URL); // process.env.DATABASE_URL should be set by dotenv
 }
 
 // You can also set other environment variables needed for tests here
