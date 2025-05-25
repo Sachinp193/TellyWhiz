@@ -1,8 +1,13 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { storage } from "./storage";
+import { log } from "./vite"; // Assuming 'log' is a suitable logger, or replace with console.log
 
 // TMDB API configuration
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
+
+if (!TMDB_API_KEY) {
+  console.error("CRITICAL ERROR: TMDB_API_KEY is not set in environment variables. TMDB API calls will fail.");
+}
 const TMDB_API_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 
@@ -43,15 +48,12 @@ const genreMap = new Map([
 // Simulate TVDB API for development using TMDB API
 export const tvdb = {
   async searchShows(query: string) {
+    const endpoint = "/search/tv";
+    const queryParams = { query, include_adult: false, language: "en-US", page: 1 };
+    log(`Calling TMDB API: ${endpoint} with query: ${query}`);
     try {
-      const response = await api.get(`/search/tv`, {
-        params: {
-          query: query,
-          include_adult: false,
-          language: "en-US",
-          page: 1,
-        },
-      });
+      const response = await api.get(endpoint, { params: queryParams });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data?.results) {
         return [];
@@ -65,7 +67,9 @@ export const tvdb = {
         year: item.first_air_date ? item.first_air_date.substring(0, 4) : "Unknown",
       }));
     } catch (error) {
-      console.error("TMDB search error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to search shows on TMDB: ${error.message}`);
       }
@@ -74,21 +78,26 @@ export const tvdb = {
   },
   
   async getShowDetails(showId: number) {
+    const endpoint = `/tv/${showId}`;
+    log(`Calling TMDB API: ${endpoint}`);
     try {
       // First check if show exists in our database
       let show = await storage.getShowByTvdbId(showId);
       
       if (show) {
+        log(`Show details for ID ${showId} found in local storage.`);
         return show;
       }
       
       // If not in the database, fetch from TMDB
-      const response = await api.get(`/tv/${showId}`, {
+      log(`Fetching show details for ID ${showId} from TMDB API: ${endpoint}`);
+      const response = await api.get(endpoint, {
         params: {
           append_to_response: "external_ids,content_ratings",
           language: "en-US",
         },
       });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data) {
         throw new Error("Show not found");
@@ -128,22 +137,29 @@ export const tvdb = {
       
       return show;
     } catch (error) {
-      console.error("TMDB show details error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       throw new Error("Failed to get show details");
     }
   },
   
   async getSeasons(showId: number) {
+    const baseEndpoint = `/tv/${showId}`;
+    log(`Attempting to get seasons for show ID ${showId}.`);
     try {
       // First check if seasons exist in our database
       let seasons = await storage.getSeasonsByShowId(showId);
       
       if (seasons && seasons.length > 0) {
+        log(`Seasons for show ID ${showId} found in local storage.`);
         return seasons;
       }
       
       // If not in the database, fetch from TMDB
-      const response = await api.get(`/tv/${showId}`);
+      log(`Fetching show (for seasons) for ID ${showId} from TMDB API: ${baseEndpoint}`);
+      const response = await api.get(baseEndpoint);
+      log(`TMDB API call to ${baseEndpoint} (for seasons) succeeded.`);
       
       if (!response.data?.seasons) {
         return [];
@@ -153,8 +169,11 @@ export const tvdb = {
         response.data.seasons
           .filter((season: any) => season.season_number > 0) // Skip specials season (0)
           .map(async (season: any) => {
+            const seasonDetailEndpoint = `/tv/${showId}/season/${season.season_number}`;
+            log(`Calling TMDB API: ${seasonDetailEndpoint}`);
             // Get additional season details
-            const seasonResponse = await api.get(`/tv/${showId}/season/${season.season_number}`);
+            const seasonResponse = await api.get(seasonDetailEndpoint);
+            log(`TMDB API call to ${seasonDetailEndpoint} succeeded.`);
             
             return {
               tvdbId: season.id,
@@ -176,7 +195,16 @@ export const tvdb = {
       
       return seasons;
     } catch (error) {
-      console.error("TMDB seasons error:", error);
+      // Error logging for getSeasons happens per-call if it's an API call, 
+      // or this will catch other errors (e.g. storage)
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      // Check if it's an Axios error to determine if it's an API call failure
+      if (axiosError.isAxiosError) {
+        console.error(`TMDB API call related to seasons for show ID ${showId} failed${status ? ` with status ${status}` : ''}:`, error);
+      } else {
+        console.error(`Error in getSeasons for show ID ${showId}:`, error);
+      }
       if (error instanceof Error) {
         throw new Error(`Failed to get seasons from TMDB: ${error.message}`);
       }
@@ -185,16 +213,18 @@ export const tvdb = {
   },
   
   async getEpisodes(showId: number) {
+    log(`Attempting to get episodes for show ID ${showId}.`);
     try {
       // First check if episodes exist in our database
       let episodes = await storage.getEpisodesByShowId(showId);
       
       if (episodes && episodes.length > 0) {
+        log(`Episodes for show ID ${showId} found in local storage.`);
         return episodes;
       }
       
       // Need to make sure we have seasons first
-      const seasons = await this.getSeasons(showId);
+      const seasons = await this.getSeasons(showId); // getSeasons has its own logging
       
       if (!seasons || seasons.length === 0) {
         return [];
@@ -202,7 +232,10 @@ export const tvdb = {
       
       // Fetch episodes for each season
       const episodesPromises = seasons.map(async (season) => {
-        const response = await api.get(`/tv/${showId}/season/${season.number}`);
+        const endpoint = `/tv/${showId}/season/${season.number}`;
+        log(`Calling TMDB API: ${endpoint} (for episodes)`);
+        const response = await api.get(endpoint);
+        log(`TMDB API call to ${endpoint} (for episodes) succeeded.`);
         
         if (!response.data?.episodes) {
           return [];
@@ -235,7 +268,14 @@ export const tvdb = {
       
       return episodes;
     } catch (error) {
-      console.error("TMDB episodes error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      // Similar to getSeasons, check if it's an API call failure
+      if (axiosError.isAxiosError) {
+        console.error(`TMDB API call related to episodes for show ID ${showId} failed${status ? ` with status ${status}` : ''}:`, error);
+      } else {
+        console.error(`Error in getEpisodes for show ID ${showId}:`, error);
+      }
       if (error instanceof Error) {
         throw new Error(`Failed to get episodes from TMDB: ${error.message}`);
       }
@@ -244,8 +284,11 @@ export const tvdb = {
   },
   
   async getCast(showId: number) {
+    const endpoint = `/tv/${showId}/credits`;
+    log(`Calling TMDB API: ${endpoint}`);
     try {
-      const response = await api.get(`/tv/${showId}/credits`);
+      const response = await api.get(endpoint);
+      log(`TMDB API call to ${endpoint} succeeded.`);
       
       if (!response.data?.cast) {
         return [];
@@ -258,7 +301,9 @@ export const tvdb = {
         image: person.profile_path ? `${TMDB_IMAGE_BASE_URL}/w185${person.profile_path}` : null,
       }));
     } catch (error) {
-      console.error("TMDB cast error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to get cast from TMDB: ${error.message}`);
       }
@@ -267,19 +312,20 @@ export const tvdb = {
   },
 
   async getPopularShowsFromTMDB() {
+    const endpoint = "/tv/popular";
+    const queryParams = { language: "en-US", page: 1 };
+    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
-      const response = await api.get(`/tv/popular`, {
-        params: {
-          language: "en-US",
-          page: 1,
-        },
-      });
+      const response = await api.get(endpoint, { params: queryParams });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for popular shows");
       }
       return response.data.results;
     } catch (error) {
-      console.error("TMDB getPopularShowsFromTMDB error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to get popular shows from TMDB: ${error.message}`);
       }
@@ -288,19 +334,20 @@ export const tvdb = {
   },
 
   async getRecentShowsFromTMDB() {
+    const endpoint = "/tv/on_the_air";
+    const queryParams = { language: "en-US", page: 1 };
+    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
-      const response = await api.get(`/tv/on_the_air`, {
-        params: {
-          language: "en-US",
-          page: 1,
-        },
-      });
+      const response = await api.get(endpoint, { params: queryParams });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for recent shows");
       }
       return response.data.results;
     } catch (error) {
-      console.error("TMDB getRecentShowsFromTMDB error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to get recent shows from TMDB: ${error.message}`);
       }
@@ -309,19 +356,20 @@ export const tvdb = {
   },
 
   async getTopRatedShowsFromTMDB() {
+    const endpoint = "/tv/top_rated";
+    const queryParams = { language: "en-US", page: 1 };
+    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
-      const response = await api.get(`/tv/top_rated`, {
-        params: {
-          language: "en-US",
-          page: 1,
-        },
-      });
+      const response = await api.get(endpoint, { params: queryParams });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.results) {
         throw new Error("Invalid response structure from TMDB for top-rated shows");
       }
       return response.data.results;
     } catch (error) {
-      console.error("TMDB getTopRatedShowsFromTMDB error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to get top-rated shows from TMDB: ${error.message}`);
       }
@@ -330,19 +378,21 @@ export const tvdb = {
   },
 
   async getGenresFromTMDB() {
+    const endpoint = "/genre/tv/list";
+    const queryParams = { language: "en-US" };
+    log(`Calling TMDB API: ${endpoint} with params: ${JSON.stringify(queryParams)}`);
     try {
-      const response = await api.get(`/genre/tv/list`, {
-        params: {
-          language: "en-US",
-        },
-      });
+      const response = await api.get(endpoint, { params: queryParams });
+      log(`TMDB API call to ${endpoint} succeeded.`);
       if (!response.data?.genres) {
         throw new Error("Invalid response structure from TMDB for genres");
       }
       // Map to our format (array of names)
       return response.data.genres.map((genre: any) => genre.name);
     } catch (error) {
-      console.error("TMDB getGenresFromTMDB error:", error);
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+      console.error(`TMDB API call to ${endpoint} failed${status ? ` with status ${status}` : ''}:`, error);
       if (error instanceof Error) {
         throw new Error(`Failed to get genres from TMDB: ${error.message}`);
       }

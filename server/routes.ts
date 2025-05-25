@@ -160,9 +160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const show = await tvdb.getShowDetails(showId);
+      if (!show) {
+        return res.status(404).json({ message: "Show not found" });
+      }
       res.json(show);
     } catch (error) {
       console.error("Show details error:", error);
+      // Consider if the error from tvdb.getShowDetails might indicate a 404 itself
+      // For now, any error in the process is treated as a 500 unless explicitly handled above.
       res.status(500).json({ message: "Failed to get show details" });
     }
   });
@@ -385,6 +390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const userShow = await storage.getUserShow(userId, showId);
+      if (!userShow) {
+        return res.status(404).json({ message: "User show association not found" });
+      }
       res.json(userShow);
     } catch (error) {
       console.error("User show error:", error);
@@ -401,7 +409,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid show ID" });
       }
       
+      // Verify the show exists before attempting to track
+      const showExists = await tvdb.getShowDetails(showId);
+      if (!showExists) {
+        return res.status(404).json({ message: "Show not found, cannot track" });
+      }
+      
       const userShow = await storage.trackShow(userId, showId);
+      // Assuming trackShow itself could return null if the user-show link already exists
+      // or if there's another reason it didn't "newly" track.
+      // For a POST, typically we'd expect a 201 if created, or 200 if updated/already exists.
+      // If userShow is null meaning "already tracked and no change", a 200 or 204 might be suitable.
+      // If it implies an error, that should be handled by an exception.
+      // For now, sticking to returning the result.
       res.json(userShow);
     } catch (error) {
       console.error("Track show error:", error);
@@ -417,9 +437,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
+
+      // Optional: Verify the show exists before attempting to untrack.
+      // This depends on whether untracking a non-existent show or non-tracked show should be an error.
+      // Typically, DELETE is idempotent, so attempting to delete something not there isn't an error (204 or 200).
+      // However, if showId itself is invalid, that could be a 404.
+      const showExists = await tvdb.getShowDetails(showId);
+      if (!showExists) {
+        return res.status(404).json({ message: "Show not found, cannot untrack" });
+      }
       
+      // storage.untrackShow should ideally handle cases where the user-show link doesn't exist gracefully
+      // (e.g., by not throwing an error and still resulting in a "not tracked" state).
       await storage.untrackShow(userId, showId);
-      res.json({ message: "Show untracked successfully" });
+      // Consider if untrackShow could return a value indicating if something was actually deleted.
+      // If not, 204 No Content might be more appropriate if the operation guarantees the resource is gone.
+      res.json({ message: "Show untracked successfully" }); // 200 OK is also fine.
     } catch (error) {
       console.error("Untrack show error:", error);
       res.status(500).json({ message: "Failed to untrack show" });
@@ -441,7 +474,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { favorite } = favoriteSchema.parse(req.body);
       
+      // Verify the show exists before attempting to favorite
+      const showExists = await tvdb.getShowDetails(showId);
+      if (!showExists) {
+        return res.status(404).json({ message: "Show not found, cannot update favorite status" });
+      }
+
+      // Also, ensure the user is tracking the show before favoriting
+      const userShowExists = await storage.getUserShow(userId, showId);
+      if (!userShowExists) {
+        return res.status(404).json({ message: "User is not tracking this show, cannot update favorite status" });
+      }
+      
       const userShow = await storage.updateUserShow(userId, showId, { favorite });
+      // If updateUserShow returns null (e.g. user not tracking the show, or show doesn't exist)
+      // it might also warrant a 404, but the checks above should handle it.
+      if (!userShow) {
+        // This case should ideally be caught by the checks above or indicate a deeper issue.
+        return res.status(404).json({ message: "Failed to update favorite status, user show not found after update." });
+      }
       res.json(userShow);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -463,6 +514,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const progress = await storage.getSeasonProgress(userId, showId);
+      // Assuming getSeasonProgress returns null if the show isn't tracked or found for the user
+      if (progress === null) { 
+        return res.status(404).json({ message: "Show progress not found for this user and show" });
+      }
       res.json(progress);
     } catch (error) {
       console.error("Show progress error:", error);
