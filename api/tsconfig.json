@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // "rootDir": "." // Optional: consider if all api sources are flat
+  },
+  "include": [
+    "*.ts"
+  ],
+  "exclude": [
+    "tests",
+    "**/*.test.ts"
+  ]
+}
