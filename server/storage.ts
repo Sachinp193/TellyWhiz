@@ -1,5 +1,5 @@
 import { db } from "@db";
-import { eq, and, desc, sql, isNull, asc, ne, or, inArray, isNotNull } from "drizzle-orm"; // Ensure isNotNull is imported
+import { eq, and, desc, sql, isNull, asc, ne, or, inArray, isNotNull } from "drizzle-orm";
 import {
   users,
   shows,
@@ -12,7 +12,7 @@ import {
 } from "@shared/schema";
 
 export const storage = {
-  // User operations
+  // ... (all your other functions remain the same)
   getUserByUsername: async (username: string) => {
     return await db.query.users.findFirst({
       where: eq(users.username, username),
@@ -27,7 +27,6 @@ export const storage = {
     return user;
   },
 
-  // Show operations
   getShowByTvdbId: async (tvdbId: number) => {
     return await db.query.shows.findFirst({
       where: eq(shows.tvdbId, tvdbId),
@@ -70,7 +69,6 @@ export const storage = {
     });
   },
 
-  // Season operations
   getSeasonsByShowId: async (showId: number) => {
     return await db.query.seasons.findMany({
       where: eq(seasons.showId, showId),
@@ -79,7 +77,6 @@ export const storage = {
   },
 
   saveSeasons: async (seasonData: any[]) => {
-    // Filter out any duplicates
     const uniqueSeasons: any[] = [];
     const seasonTvdbIds = new Set();
 
@@ -107,7 +104,6 @@ export const storage = {
     return existingSeasons;
   },
 
-  // Episode operations
   getEpisodesByShowId: async (showId: number) => {
     return await db.query.episodes.findMany({
       where: eq(episodes.showId, showId),
@@ -116,7 +112,6 @@ export const storage = {
   },
 
   saveEpisodes: async (episodeData: any[]) => {
-    // Filter out any duplicates
     const uniqueEpisodes: any[] = [];
     const episodeTvdbIds = new Set();
 
@@ -144,7 +139,6 @@ export const storage = {
     return existingEpisodes;
   },
 
-  // User Show operations
   getUserShow: async (userId: number, showId: number) => {
     return await db.query.userShows.findFirst({
       where: and(
@@ -243,7 +237,6 @@ export const storage = {
     return userShowData.map(us => us.show);
   },
 
-  // User Episode operations
   getUserEpisode: async (userId: number, episodeId: number) => {
     return await db.query.userEpisodes.findFirst({
       where: and(
@@ -304,7 +297,6 @@ export const storage = {
     const watchedCount = watchedEpisodes.length;
     const progress = totalEpisodes > 0 ? Math.floor((watchedCount / totalEpisodes) * 100) : 0;
 
-    // Update user's show progress
     await db.update(userShows)
       .set({
         progress,
@@ -342,7 +334,6 @@ export const storage = {
 
     const seasonProgress: Record<number, {watched: number, total: number}> = {};
 
-    // Group episodes by season and count totals
     allEpisodes.forEach(episode => {
       if (!seasonProgress[episode.seasonNumber]) {
         seasonProgress[episode.seasonNumber] = { watched: 0, total: 0 };
@@ -350,7 +341,6 @@ export const storage = {
       seasonProgress[episode.seasonNumber].total++;
     });
 
-    // Count watched episodes by season
     watchedEpisodes.forEach(userEpisode => {
       const seasonNumber = userEpisode.episode.seasonNumber;
       if (seasonProgress[seasonNumber]) {
@@ -361,7 +351,6 @@ export const storage = {
     return seasonProgress;
   },
 
-  // User Lists operations
   getUserLists: async (userId: number) => {
     return await db.query.userLists.findMany({
       where: eq(userLists.userId, userId),
@@ -379,14 +368,17 @@ export const storage = {
     return list;
   },
 
-  // Popular and trending shows
+  // --- REVISED POPULAR AND TOP RATED SHOWS ---
+
   getPopularShows: async (limit = 12, genre?: string) => {
     let query = db.select().from(shows);
-
+    
+    // Add the genre condition if it exists
     if (genre) {
       query = query.where(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
     }
-
+    
+    // Apply limit and order by after all conditions are added
     return await query.limit(limit).orderBy(desc(shows.rating));
   },
 
@@ -396,27 +388,23 @@ export const storage = {
       .limit(limit);
   },
 
-  // --- FIX FOR getTopRatedShows START ---
   getTopRatedShows: async (limit = 12, genre?: string) => {
-    // Start with a base selection from shows
     let query = db.select().from(shows);
 
-    // Apply the 'rating is not null' condition using isNotNull
-    // It's important to reassign the query to capture the updated type for chaining.
-    query = query.where(isNotNull(shows.rating)); // FIX for error TS2769
+    // Apply the 'rating is not null' condition FIRST
+    query = query.where(isNotNull(shows.rating));
 
-    // If genre is provided, add the genre filtering condition
+    // If genre is provided, apply the genre filtering condition
     if (genre) {
-      // Chain another where clause. This should now be type-safe.
-      query = query.where(sql`${shows.genres} @> ARRAY[${genre}]::text[]`); // FIX for error TS2339 / TS2740
+      // Chain another where clause, as the type should now be correct
+      query = query.where(sql`${shows.genres} @> ARRAY[${genre}]::text[]`);
     }
-
-    // Finally, apply ordering and limit
+    
+    // Apply order by and limit last
     return await query
       .orderBy(desc(shows.rating))
       .limit(limit);
   },
-  // --- FIX FOR getTopRatedShows END ---
 
   getAllGenres: async () => {
     const result = await db.execute(
