@@ -52,6 +52,7 @@ app.post('/api/users/:userId/series', async (req: Request, res: Response) => { /
 });
 
 app.use((req, res, next) => {
+  console.log(`[API] Request received: ${req.method} ${req.path}`); // New log line
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
