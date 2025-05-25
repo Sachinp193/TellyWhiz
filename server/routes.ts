@@ -5,6 +5,7 @@ import { tvdb } from "./tmdb";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcrypt";
 import { db } from "@db";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -56,7 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return done(null, false, { message: "Incorrect username" });
         }
         
-        if (user.password !== password) {
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
           return done(null, false, { message: "Incorrect password" });
         }
         
@@ -92,7 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username already taken" });
       }
       
-      const user = await storage.createUser(username, password);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser(username, hashedPassword);
       
       req.login(user, (err) => {
         if (err) {
@@ -246,16 +249,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const popularResponse = await fetch(`https://api.themoviedb.org/3/tv/popular?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`);
-      const popularData = await popularResponse.json();
-      
-      if (!popularData.results) {
-        return res.status(500).json({ message: "Failed to get shows from TMDB" });
-      }
+      const popularDataResults = await tvdb.getPopularShowsFromTMDB();
       
       // Process and save each show
       const shows = await Promise.all(
-        popularData.results.slice(0, 12).map(async (show: any) => {
+        popularDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
           const details = await tvdb.getShowDetails(show.id);
           return details;
@@ -279,18 +277,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const airingResponse = await fetch(
-        `https://api.themoviedb.org/3/tv/on_the_air?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
-      );
-      const airingData = await airingResponse.json();
-      
-      if (!airingData.results) {
-        return res.status(500).json({ message: "Failed to get shows from TMDB" });
-      }
+      const airingDataResults = await tvdb.getRecentShowsFromTMDB();
       
       // Process and save each show
       const shows = await Promise.all(
-        airingData.results.slice(0, 12).map(async (show: any) => {
+        airingDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
           const details = await tvdb.getShowDetails(show.id);
           return details;
@@ -315,18 +306,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const topRatedResponse = await fetch(
-        `https://api.themoviedb.org/3/tv/top_rated?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
-      );
-      const topRatedData = await topRatedResponse.json();
-      
-      if (!topRatedData.results) {
-        return res.status(500).json({ message: "Failed to get shows from TMDB" });
-      }
+      const topRatedDataResults = await tvdb.getTopRatedShowsFromTMDB();
       
       // Process and save each show
       const shows = await Promise.all(
-        topRatedData.results.slice(0, 12).map(async (show: any) => {
+        topRatedDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
           const details = await tvdb.getShowDetails(show.id);
           return details;
@@ -349,18 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If not, fetch from TMDB
-      const genresResponse = await fetch(
-        `https://api.themoviedb.org/3/genre/tv/list?api_key=${process.env.TMDB_API_KEY}&language=en-US`
-      );
-      const genresData = await genresResponse.json();
-      
-      if (!genresData.genres) {
-        return res.status(500).json({ message: "Failed to get genres from TMDB" });
-      }
-      
-      // Map to our format
-      const genres = genresData.genres.map((genre: any) => genre.name);
-      
+      const genres = await tvdb.getGenresFromTMDB();
       return res.json(genres);
     } catch (error) {
       console.error("Genres error:", error);

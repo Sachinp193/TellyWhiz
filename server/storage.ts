@@ -19,10 +19,10 @@ export const storage = {
     });
   },
   
-  createUser: async (username: string, password: string) => {
+  createUser: async (username: string, hashedPassword: string) => {
     const [user] = await db.insert(users).values({
       username,
-      password,
+      password: hashedPassword,
     }).returning();
     return user;
   },

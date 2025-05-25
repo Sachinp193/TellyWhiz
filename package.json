@@ -9,11 +9,12 @@
     "start": "NODE_ENV=production node dist/api/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
-    "db:seed": "tsx db/seed.ts"
+    "db:seed": "tsx db/seed.ts",
+    "test": "vitest"
   },
-    "overrides": {
-      "esbuild": "^0.25.3"
-    },
+  "overrides": {
+    "esbuild": "^0.25.3"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -48,7 +49,9 @@
     "@replit/vite-plugin-cartographer": "^0.0.11",
     "@replit/vite-plugin-shadcn-theme-json": "^0.0.4",
     "@tanstack/react-query": "^5.60.5",
+    "@types/bcrypt": "^5.0.2",
     "axios": "^1.9.0",
+    "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -94,13 +97,16 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^16.5.0",
     "drizzle-kit": "^0.31.1",
     "esbuild": "^0.25.3",
+    "msw": "^2.8.4",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
-    "vite": "^6.3.4"
+    "vite": "^6.3.4",
+    "vitest": "^3.1.4"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
