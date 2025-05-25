@@ -6,7 +6,7 @@
   "outputDirectory": "dist",
 
   "functions": {
-    "dist/api/index.js": {
+    "api/index.js": {
       "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 30
@@ -16,7 +16,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/dist/api/index.js"
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
