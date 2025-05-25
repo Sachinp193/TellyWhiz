@@ -12,14 +12,10 @@
   },
 
   "routes": [
-    // Route for your API endpoints.
-    // Requests to /api/* will be handled by the serverless function defined by server/index.ts.
     {
       "src": "/api/(.*)",
       "dest": "/server/index.ts"
     },
-    // Route for your static client files.
-    // All other requests will be served from the 'dist' directory at the project root.
     {
       "src": "/(.*)",
       "dest": "/dist/$1"
