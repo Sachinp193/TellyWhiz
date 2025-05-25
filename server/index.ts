@@ -12,10 +12,15 @@ app.get('/api/test-db', async (req: Request, res: Response) => { // Added Reques
     const client = await pool.connect(); // Get a client from the pool
     const result = await client.query('SELECT NOW() as current_time');
     client.release(); // Release the client back to the pool
-    console.log('Database connected successfully:', result.rows[0].current_time);
+    console.log(
+      `Successfully connected to database: ${pool.options.database} at ${pool.options.host}:${pool.options.port}. Current time: ${result.rows[0].current_time}`
+    );
     res.json({ message: 'Database connected!', time: result.rows[0].current_time });
   } catch (err: any) {
-    console.error('Database connection error:', err.message);
+    console.error(
+      `Error connecting to database: ${pool.options.database} at ${pool.options.host}:${pool.options.port}. Error: ${err.message}`,
+      err.stack 
+    );
     res.status(500).json({ message: 'Failed to connect to database', error: err.message });
   }
 });
