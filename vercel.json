@@ -1,11 +1,13 @@
 {
+  "version": 2, // Added this line
+
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
 
   "functions": {
     "server/index.ts": {
-      "runtime": "@vercel/node@3.0.0", // CHANGED from @vercel/node@3 to @vercel/node@3.0.0
+      "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 30
     }
