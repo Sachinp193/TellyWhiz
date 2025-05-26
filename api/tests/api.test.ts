@@ -110,9 +110,8 @@ describe('GET /api/search', () => {
     (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
       console.log(`[TEST MOCK AXIOS] beforeEach GET /api/search mockGet called with URL: ${url}`);
       if (url === '/configuration') {
-        const responseData = { data: { images: { secure_base_url: "https://image.tmdb.org/t/p/", poster_sizes: ["w342", "original"], backdrop_sizes: ["w780", "original"], profile_sizes: ["w185", "original"], still_sizes: ["w300", "original"] } } };
-        console.log('[TEST MOCK AXIOS] beforeEach GET /api/search: Returning for /configuration:', JSON.stringify(responseData));
-        return Promise.resolve(responseData);
+        console.log('[TEST MOCK AXIOS] beforeEach mockGet. Returning for /configuration: {"data":{}}'); // Updated log
+        return Promise.resolve({ data: {} }); // Changed to minimal data object
       }
       console.error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Error: Attempted unmocked GET request to ${url}`);
       throw new Error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Attempted unmocked GET request to ${url}`);
@@ -212,9 +211,8 @@ describe('POST /api/user/shows/:id/track', () => {
     (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
       console.log(`[TEST MOCK AXIOS] beforeEach POST suite mockGet called with URL: ${url}`);
       if (url === '/configuration') {
-        const responseData = { data: { images: { secure_base_url: "https://image.tmdb.org/t/p/", poster_sizes: ["w342", "original"], backdrop_sizes: ["w780", "original"], profile_sizes: ["w185", "original"], still_sizes: ["w300", "original"] } } };
-        console.log('[TEST MOCK AXIOS] beforeEach POST suite: Returning for /configuration:', JSON.stringify(responseData));
-        return Promise.resolve(responseData);
+        console.log('[TEST MOCK AXIOS] beforeEach mockGet. Returning for /configuration: {"data":{}}'); // Updated log
+        return Promise.resolve({ data: {} }); // Changed to minimal data object
       }
       console.error(`[TEST MOCK AXIOS] beforeEach POST suite: Error: Attempted unmocked GET request to ${url}`);
       throw new Error(`[TEST MOCK AXIOS] beforeEach POST suite: Attempted unmocked GET request to ${url}`);
