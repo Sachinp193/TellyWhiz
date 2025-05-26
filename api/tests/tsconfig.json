@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json", // Extends the root tsconfig.json
+  "compilerOptions": {
+    "baseUrl": "../..", // Adjust baseUrl to be the project root
+    "outDir": "./dist", // Or any other appropriate output directory, though not strictly necessary for tests if noEmit is true
+    "noEmit": true,     // Typically true for test-specific tsconfig as tests are run directly by test runner
+    "types": [
+      "vitest/globals", // For Vitest global APIs
+      "node",           // General Node.js types
+      "@types/supertest"  // For supertest types
+    ],
+    // Ensure path aliases from the root tsconfig are still resolved correctly
+    // These paths should be relative to the `baseUrl` (project root)
+    "paths": {
+      "@db": ["./db/index.ts"],
+      "@db/*": ["./db/*"],
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
+    }
+  },
+  "include": [
+    "./**/*.ts" // Include all .ts files in the current directory (api/tests/) and its subdirectories
+  ]
+}
