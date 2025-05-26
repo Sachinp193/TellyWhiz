@@ -2,7 +2,6 @@ import request from 'supertest';
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
 import axios from 'axios'; // Import axios to spy on its methods after mocking
 
-// 1. Define individual mock functions for tmdbClient methods
 const mockSearchShows = vi.fn();
 const mockGetShowDetails = vi.fn();
 const mockGetSeasons = vi.fn();
@@ -13,9 +12,8 @@ const mockGetRecentShowsFromTMDB = vi.fn();
 const mockGetTopRatedShowsFromTMDB = vi.fn();
 const mockGetGenresFromTMDB = vi.fn();
 
-// 2. Update vi.mock('../tmdb', ...)
 vi.mock('../tmdb', () => ({
-  __esModule: true, // Ensure it's treated as an ES module
+  __esModule: true, // Important for ES Modules
   tmdbClient: {
     searchShows: mockSearchShows,
     getShowDetails: mockGetShowDetails,
@@ -66,7 +64,6 @@ vi.mock('axios', async (importOriginal) => {
 });
 
 import app from '../index'; 
-// Removed: import { tmdbClient as tmdbMockObject } from '../tmdb'; 
 import { storage } from '../storage'; 
 import { db } from '../../db'; 
 import * as schema from '../../shared/schema'; 
@@ -123,10 +120,10 @@ describe('GET /api/search', () => {
 
     // Default mock implementations for new tmdbClient mock functions
     mockSearchShows.mockResolvedValue([]);
-    mockGetShowDetails.mockResolvedValue(null);
-    mockGetSeasons.mockResolvedValue([]);
-    mockGetEpisodes.mockResolvedValue([]);
-    mockGetCast.mockResolvedValue([]);
+    mockGetShowDetails.mockResolvedValue(null); 
+    mockGetSeasons.mockResolvedValue([]);     
+    mockGetEpisodes.mockResolvedValue([]);    
+    mockGetCast.mockResolvedValue([]);        
     mockGetPopularShowsFromTMDB.mockResolvedValue([]);
     mockGetRecentShowsFromTMDB.mockResolvedValue([]);
     mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
@@ -135,7 +132,7 @@ describe('GET /api/search', () => {
 
 
   it('should return 200 and search results for a valid query', async () => {
-    const mockShows: MockShow[] = [
+    const mockShowsData: MockShow[] = [ // Renamed to avoid conflict with interface name
       { id: 1, name: 'Test Show 1', overview: 'Overview 1', image: 'image1.jpg', year: '2023', first_aired: '2023-01-01', network: 'Network1', status: 'Running', runtime: 30, banner: 'banner1.jpg', rating: 8, genres: ['Drama'] },
       { id: 2, name: 'Test Show 2', overview: 'Overview 2', image: 'image2.jpg', year: '2022', first_aired: '2022-01-01', network: 'Network2', status: 'Ended', runtime: 60, banner: 'banner2.jpg', rating: 9, genres: ['Comedy'] },
     ];
@@ -144,7 +141,7 @@ describe('GET /api/search', () => {
     const response: Response = await request(app).get('/api/search?q=ValidQuery');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(mockShows);
+    expect(response.body).toEqual(mockShowsData);
 
     expect(axios.get as vi.Mock).toHaveBeenCalledWith('/configuration');
     expect(mockSearchShows).toHaveBeenCalledWith('ValidQuery');
@@ -156,10 +153,6 @@ describe('GET /api/search', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ message: 'Query must be at least 2 characters' });
     expect(mockSearchShows).not.toHaveBeenCalled();
-    // If searchShows is not called due to query length, getTmdbConfiguration might not be called by that specific path.
-    // App-level middleware might call it regardless. For this test, if the handler returns early,
-    // /configuration might not be called *by this request path*.
-    // The instruction says: expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
     expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
   });
 
@@ -171,16 +164,7 @@ describe('GET /api/search', () => {
     expect(response.status).toBe(500);
     expect((response.body as { message: string }).message).toEqual('Failed to search shows');
     
-    // If searchShows (part of tmdbClient) rejects, it implies getTmdbConfiguration was not called or its failure isn't the primary error here.
-    // The logic in `api/index.js` is: `await getTmdbConfiguration(); ... const results = await tmdbClient.searchShows(query);`
-    // If `getTmdbConfiguration` fails, it throws. If `tmdbClient.searchShows` (now `mockSearchShows`) fails, it also throws.
-    // The instruction: expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
-    // This implies the failure of `mockSearchShows` should prevent the config call or make it irrelevant.
-    // However, in the actual code, `getTmdbConfiguration` is called *before* `tmdbClient.searchShows`.
-    // So, if `mockSearchShows` is the one rejecting, `/configuration` *would have been called already*.
-    // I will follow the instruction but note this potential logical conflict with typical execution flow.
     expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
-    
     expect(mockSearchShows).toHaveBeenCalledWith('ErrorQuery');
   });
 });
@@ -193,26 +177,21 @@ describe('POST /api/user/shows/:id/track', () => {
   let userId: number | undefined;
   let authenticatedAgent: SuperTest<Test>;
 
-  // Assuming schema.ShowInsert has these properties. Adjust as per actual schema.
-  // This type should ideally be imported from your schema definitions.
   type ShowInsertType = typeof schema.shows.$inferInsert;
 
   const showToTrack: ShowInsertType = {
-    // id is auto-generated by DB, so not included here for insertion
     tmdbId: 123, 
     name: "Test Show for Tracking",
     overview: "An overview.",
-    status: "Running", // Ensure this matches schema enum if applicable
+    status: "Running", 
     firstAired: "2023-01-01",
     network: "Test Network",
     runtime: 30,
     image: "test_image.jpg",
     banner: "test_banner.jpg",
-    rating: 8.0, // Make sure this is a number if schema expects float/decimal
-    genres: ["Drama"], // Ensure this matches schema (e.g., JSON or separate table)
-    year: "2023-Present", // This might need to be an integer or derived differently
-    // lastRefreshed: new Date(), // Example: if your schema requires it
-    // Add other required fields from schema.shows.$inferInsert
+    rating: 8.0, 
+    genres: ["Drama"], 
+    year: "2023-Present", 
   };
 
 
@@ -228,53 +207,44 @@ describe('POST /api/user/shows/:id/track', () => {
   });
 
   beforeEach(async () => {
-    // Reset ALL mocks. This includes the mockGet in the axios factory.
     vi.resetAllMocks();
 
-    // Re-apply the default mock implementation for axios.get (shared mockGet) for this suite too.
-    (axios.get as vi.Mock).mockImplementation(async (url: string) => {
+    (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
+      console.log(`[TEST MOCK AXIOS] beforeEach POST suite mockGet called with URL: ${url}`);
       if (url === '/configuration') {
-        return Promise.resolve({ 
-          data: { 
-            images: { 
-              secure_base_url: 'https://image.tmdb.org/t/p/',
-              poster_sizes: ["w92", "w154", "w185", "w342", "w500", "w780", "original"],
-              backdrop_sizes: ["w300", "w780", "w1280", "original"],
-              profile_sizes: ["w45", "w185", "h632", "original"],
-              still_sizes: ["w92", "w185", "w300", "original"]
-            } 
-          } 
-        });
+        const responseData = { data: { images: { secure_base_url: "https://image.tmdb.org/t/p/", poster_sizes: ["w342", "original"], backdrop_sizes: ["w780", "original"], profile_sizes: ["w185", "original"], still_sizes: ["w300", "original"] } } };
+        console.log('[TEST MOCK AXIOS] beforeEach POST suite: Returning for /configuration:', JSON.stringify(responseData));
+        return Promise.resolve(responseData);
       }
-      // Add specific mocks for other URLs if needed by this test suite's axios calls,
-      // or throw an error for unexpected calls.
-      throw new Error(`[TEST MOCK] Axios: Attempted unmocked GET request to ${url} during POST suite test run`);
+      console.error(`[TEST MOCK AXIOS] beforeEach POST suite: Error: Attempted unmocked GET request to ${url}`);
+      throw new Error(`[TEST MOCK AXIOS] beforeEach POST suite: Attempted unmocked GET request to ${url}`);
     });
 
-    // Default mocks for tmdbClient methods relevant to this suite
-    (tmdbMockObject.searchShows as vi.Mock).mockResolvedValue([]); 
-    (tmdbMockObject.getSeasons as vi.Mock).mockResolvedValue([]);   
+    // Default mock implementations for new tmdbClient mock functions for this suite
+    mockSearchShows.mockResolvedValue([]); // Though likely not used directly in this suite
+    mockGetSeasons.mockResolvedValue([]);   // For any underlying calls if any
+    mockGetEpisodes.mockResolvedValue([]);  // For any underlying calls if any
+    mockGetCast.mockResolvedValue([]);      // For any underlying calls if any
+    mockGetPopularShowsFromTMDB.mockResolvedValue([]);
+    mockGetRecentShowsFromTMDB.mockResolvedValue([]);
+    mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
+    mockGetGenresFromTMDB.mockResolvedValue([]);
     
-    // The route handler for tracking calls `storage.getShowDetails(tmdbId)`.
-    // `storage.getShowDetails` internally calls `tmdbClient.getShowDetails(tmdbId)` (which is tmdbMockObject.getShowDetails)
-    // and then `storage.saveShow()`.
-    // So we mock `tmdbMockObject.getShowDetails` to return the necessary TMDB-like data.
-    (tmdbMockObject.getShowDetails as vi.Mock).mockImplementation(async (showIdFromRoute: number): Promise<Partial<schema.Show> | null> => {
+    // Specific mock for mockGetShowDetails for this suite
+    mockGetShowDetails.mockImplementation(async (showIdFromRoute: number): Promise<any | null> => { 
       if (showIdFromRoute === showToTrack.tmdbId) {
-        // This is the data that tmdbClient.getShowDetails would return from TMDB API
-        // storage.saveShow will then use this to save to the DB.
         return {
           name: showToTrack.name,
           overview: showToTrack.overview,
-          first_air_date: showToTrack.firstAired,
+          first_air_date: showToTrack.firstAired, 
           networks: [{ name: showToTrack.network }],
           episode_run_time: [showToTrack.runtime || 0], 
           poster_path: showToTrack.image,
           backdrop_path: showToTrack.banner,
           vote_average: showToTrack.rating,
-          genres: showToTrack.genres.map(g => ({ name: g })),
+          genres: showToTrack.genres?.map(g => ({ name: g })) || [], 
           status: showToTrack.status,
-        } as any; 
+        }; 
       }
       return null;
     });
