@@ -4,20 +4,47 @@ import { storage } from "./storage";
 // TMDB API configuration
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
-if (!TMDB_API_KEY) {
-  console.error("CRITICAL ERROR: TMDB_API_KEY is not set in environment variables. TMDB API calls will fail.");
+/**
+ * Optional TMDB Proxy Base URL.
+ * Purpose: If set, directs all TMDB API calls from this client to the specified proxy URL.
+ * This is useful for bypassing regional TMDB hosting issues or centralizing API key management via a proxy server.
+ * Example format: `http://localhost:3001/proxy-tmdb` or `https://your-deployed-proxy.com/proxy-tmdb`.
+ * The proxy server itself (see `api/tmdb-proxy.ts`) will then use its own `PROXY_TMDB_API_KEY`
+ * to authenticate with the actual TMDB API.
+ */
+const TMDB_PROXY_BASE_URL = process.env.TMDB_API_BASE_URL;
+
+const usingProxy = !!TMDB_PROXY_BASE_URL;
+const finalApiBaseUrl = TMDB_PROXY_BASE_URL || "https://api.themoviedb.org/3";
+
+// Log whether proxy is being used
+if (usingProxy) {
+  console.log(`[TMDB Client] Using TMDB Proxy at: ${finalApiBaseUrl}`);
+  // When using a proxy, the TMDB_API_KEY in this client's environment is not directly sent to TMDB by this client.
+  // The proxy server (`api/tmdb-proxy.ts`) is responsible for adding its own `PROXY_TMDB_API_KEY`.
+} else {
+  console.log(`[TMDB Client] Connecting directly to TMDB at: ${finalApiBaseUrl}`);
+  if (!TMDB_API_KEY) {
+    console.error("CRITICAL ERROR: TMDB_API_KEY is not set in this application's environment. Direct TMDB API calls will fail.");
+  }
 }
-const TMDB_API_URL = "https://api.themoviedb.org/3";
+
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"; // Fallback
 
 let tmdbApiConfig: any = null;
 let dynamicImageBaseUrl: string = TMDB_IMAGE_BASE_URL; // Initialize with fallback
 
+// Prepare params for axios instance
+const axiosParams: any = {};
+if (!usingProxy) {
+  // Only add api_key to client requests if NOT using the proxy.
+  // If using the proxy, the proxy server will add its own key.
+  axiosParams.api_key = TMDB_API_KEY;
+}
+
 const api = axios.create({
-  baseURL: TMDB_API_URL,
-  params: {
-    api_key: TMDB_API_KEY,
-  },
+  baseURL: finalApiBaseUrl,
+  params: axiosParams, 
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json",

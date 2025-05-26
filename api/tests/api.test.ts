@@ -2,6 +2,33 @@ import request from 'supertest';
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
 import axios from 'axios'; // Import axios to spy on its methods after mocking
 
+// 1. Define individual mock functions for tmdbClient methods
+const mockSearchShows = vi.fn();
+const mockGetShowDetails = vi.fn();
+const mockGetSeasons = vi.fn();
+const mockGetEpisodes = vi.fn();
+const mockGetCast = vi.fn();
+const mockGetPopularShowsFromTMDB = vi.fn();
+const mockGetRecentShowsFromTMDB = vi.fn();
+const mockGetTopRatedShowsFromTMDB = vi.fn();
+const mockGetGenresFromTMDB = vi.fn();
+
+// 2. Update vi.mock('../tmdb', ...)
+vi.mock('../tmdb', () => ({
+  __esModule: true, // Ensure it's treated as an ES module
+  tmdbClient: {
+    searchShows: mockSearchShows,
+    getShowDetails: mockGetShowDetails,
+    getSeasons: mockGetSeasons,
+    getEpisodes: mockGetEpisodes,
+    getCast: mockGetCast,
+    getPopularShowsFromTMDB: mockGetPopularShowsFromTMDB,
+    getRecentShowsFromTMDB: mockGetRecentShowsFromTMDB,
+    getTopRatedShowsFromTMDB: mockGetTopRatedShowsFromTMDB,
+    getGenresFromTMDB: mockGetGenresFromTMDB,
+  }
+}));
+
 vi.mock('axios', async (importOriginal) => {
   const actualAxios = await importOriginal<typeof import('axios')>();
   const mockGet = vi.fn(); // This is THE mock function shared by static and instance .get
@@ -19,46 +46,32 @@ vi.mock('axios', async (importOriginal) => {
   });
 
   return {
-    ...actualAxios, // Spread original axios to keep non-mocked parts like AxiosError
-    default: { // Mock the default export (axios itself)
-      ...actualAxios.default, // Spread original axios default export
-      create: vi.fn(() => ({ // Mock axios.create()
-        ...(actualAxios.default ? actualAxios.default.create() : {}), // Spread an actual instance if needed for other methods
-        get: mockGet, // Use the mockGet function for instance.get()
-        post: vi.fn(), // Add other methods if used by tmdb.ts and need mocking
+    ...actualAxios, 
+    default: { 
+      ...actualAxios.default, 
+      create: vi.fn(() => ({ 
+        ...(actualAxios.default ? actualAxios.default.create() : {}), 
+        get: mockGet, 
+        post: vi.fn(), 
         put: vi.fn(),
         delete: vi.fn(),
       })),
-      get: mockGet, // Also mock static axios.get() if used directly by tmdb.ts
+      get: mockGet, 
       post: vi.fn(),
       put: vi.fn(),
       delete: vi.fn(),
-      isAxiosError: actualAxios.isAxiosError // Ensure this is correctly passed through
+      isAxiosError: actualAxios.isAxiosError 
     },
   };
 });
 
 import app from '../index'; 
-import { tmdbClient as tmdbMockObject } from '../tmdb'; 
-import { storage } from '../storage'; // Import real storage
+// Removed: import { tmdbClient as tmdbMockObject } from '../tmdb'; 
+import { storage } from '../storage'; 
 import { db } from '../../db'; 
 import * as schema from '../../shared/schema'; 
 import { eq, sql } from 'drizzle-orm';
 
-// Mock the tmdb module, specifically the tmdbClient object and its methods
-vi.mock('../tmdb', () => ({
-  tmdbClient: {
-    searchShows: vi.fn(),
-    getShowDetails: vi.fn(),
-    getSeasons: vi.fn(),
-    getEpisodes: vi.fn(),
-    getCast: vi.fn(),
-    getPopularShowsFromTMDB: vi.fn(),
-    getRecentShowsFromTMDB: vi.fn(),
-    getTopRatedShowsFromTMDB: vi.fn(),
-    getGenresFromTMDB: vi.fn(),
-  }
-}));
 
 import { type SuperTest, type Test, type Response } from 'supertest';
 
@@ -97,28 +110,27 @@ describe('GET /api/search', () => {
     vi.resetAllMocks();
 
     // Re-apply the implementation for the shared mockGet (accessed via static axios.get)
-    // This is crucial because vi.resetAllMocks() clears the previous implementation.
     (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
-      console.log(`[TEST MOCK AXIOS] beforeEach mockGet called with URL: ${url}`);
+      console.log(`[TEST MOCK AXIOS] beforeEach GET /api/search mockGet called with URL: ${url}`);
       if (url === '/configuration') {
         const responseData = { data: { images: { secure_base_url: "https://image.tmdb.org/t/p/", poster_sizes: ["w342", "original"], backdrop_sizes: ["w780", "original"], profile_sizes: ["w185", "original"], still_sizes: ["w300", "original"] } } };
-        console.log('[TEST MOCK AXIOS] beforeEach: Returning for /configuration:', JSON.stringify(responseData));
+        console.log('[TEST MOCK AXIOS] beforeEach GET /api/search: Returning for /configuration:', JSON.stringify(responseData));
         return Promise.resolve(responseData);
       }
-      console.error(`[TEST MOCK AXIOS] beforeEach: Error: Attempted unmocked GET request to ${url}`);
-      throw new Error(`[TEST MOCK AXIOS] beforeEach: Attempted unmocked GET request to ${url}`);
+      console.error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Error: Attempted unmocked GET request to ${url}`);
+      throw new Error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Attempted unmocked GET request to ${url}`);
     });
 
-    // Default mock implementations for tmdbClient methods (tmdbMockObject)
-    (tmdbMockObject.searchShows as vi.Mock<[string], Promise<MockShow[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getShowDetails as vi.Mock<[number], Promise<any>>).mockResolvedValue(null);
-    (tmdbMockObject.getSeasons as vi.Mock<[number], Promise<any[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getEpisodes as vi.Mock<[number, number], Promise<any[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getCast as vi.Mock<[number], Promise<any[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getPopularShowsFromTMDB as vi.Mock<[], Promise<MockShow[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getRecentShowsFromTMDB as vi.Mock<[], Promise<MockShow[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getTopRatedShowsFromTMDB as vi.Mock<[], Promise<MockShow[]>>).mockResolvedValue([]);
-    (tmdbMockObject.getGenresFromTMDB as vi.Mock<[], Promise<any[]>>).mockResolvedValue([]);
+    // Default mock implementations for new tmdbClient mock functions
+    mockSearchShows.mockResolvedValue([]);
+    mockGetShowDetails.mockResolvedValue(null);
+    mockGetSeasons.mockResolvedValue([]);
+    mockGetEpisodes.mockResolvedValue([]);
+    mockGetCast.mockResolvedValue([]);
+    mockGetPopularShowsFromTMDB.mockResolvedValue([]);
+    mockGetRecentShowsFromTMDB.mockResolvedValue([]);
+    mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
+    mockGetGenresFromTMDB.mockResolvedValue([]);
   });
 
 
@@ -127,19 +139,15 @@ describe('GET /api/search', () => {
       { id: 1, name: 'Test Show 1', overview: 'Overview 1', image: 'image1.jpg', year: '2023', first_aired: '2023-01-01', network: 'Network1', status: 'Running', runtime: 30, banner: 'banner1.jpg', rating: 8, genres: ['Drama'] },
       { id: 2, name: 'Test Show 2', overview: 'Overview 2', image: 'image2.jpg', year: '2022', first_aired: '2022-01-01', network: 'Network2', status: 'Ended', runtime: 60, banner: 'banner2.jpg', rating: 9, genres: ['Comedy'] },
     ];
-    // This mock is for tmdbClient.searchShows, which is called by the /api/search route handler
-    (tmdbMockObject.searchShows as vi.Mock<[string], Promise<MockShow[]>>).mockResolvedValue(mockShows);
+    mockSearchShows.mockResolvedValue(mockShowsData);
 
     const response: Response = await request(app).get('/api/search?q=ValidQuery');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(mockShows);
 
-    // Assert that the shared mockGet (via axios.get) was called for /configuration
     expect(axios.get as vi.Mock).toHaveBeenCalledWith('/configuration');
-    
-    // Verify that the tmdbClient.searchShows (which is tmdbMockObject.searchShows here) was called
-    expect(tmdbMockObject.searchShows).toHaveBeenCalledWith('ValidQuery');
+    expect(mockSearchShows).toHaveBeenCalledWith('ValidQuery');
   });
 
   it('should return 400 if the query is too short', async () => {
@@ -147,26 +155,33 @@ describe('GET /api/search', () => {
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ message: 'Query must be at least 2 characters' });
-    expect(tmdbMockObject.searchShows).not.toHaveBeenCalled();
-    
-    // Configuration should still be called by the app's middleware/setup.
-    expect(axios.get as vi.Mock).toHaveBeenCalledWith('/configuration');
+    expect(mockSearchShows).not.toHaveBeenCalled();
+    // If searchShows is not called due to query length, getTmdbConfiguration might not be called by that specific path.
+    // App-level middleware might call it regardless. For this test, if the handler returns early,
+    // /configuration might not be called *by this request path*.
+    // The instruction says: expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
+    expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
   });
 
   it('should return 500 if TMDB API call fails (simulated by tmdbClient.searchShows rejection)', async () => {
-    // Simulate failure at the level of tmdbClient.searchShows
-    (tmdbMockObject.searchShows as vi.Mock<[string], Promise<MockShow[]>>).mockRejectedValue(new Error('TMDB API Error'));
+    mockSearchShows.mockRejectedValue(new Error('TMDB API Error'));
 
     const response: Response = await request(app).get('/api/search?q=ErrorQuery');
 
     expect(response.status).toBe(500);
     expect((response.body as { message: string }).message).toEqual('Failed to search shows');
-
-    // Configuration should have been called
-    expect(axios.get as vi.Mock).toHaveBeenCalledWith('/configuration');
     
-    // tmdbClient.searchShows should have been called
-    expect(tmdbMockObject.searchShows).toHaveBeenCalledWith('ErrorQuery');
+    // If searchShows (part of tmdbClient) rejects, it implies getTmdbConfiguration was not called or its failure isn't the primary error here.
+    // The logic in `api/index.js` is: `await getTmdbConfiguration(); ... const results = await tmdbClient.searchShows(query);`
+    // If `getTmdbConfiguration` fails, it throws. If `tmdbClient.searchShows` (now `mockSearchShows`) fails, it also throws.
+    // The instruction: expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
+    // This implies the failure of `mockSearchShows` should prevent the config call or make it irrelevant.
+    // However, in the actual code, `getTmdbConfiguration` is called *before* `tmdbClient.searchShows`.
+    // So, if `mockSearchShows` is the one rejecting, `/configuration` *would have been called already*.
+    // I will follow the instruction but note this potential logical conflict with typical execution flow.
+    expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
+    
+    expect(mockSearchShows).toHaveBeenCalledWith('ErrorQuery');
   });
 });
 
