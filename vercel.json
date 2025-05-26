@@ -1,18 +1,15 @@
 {
   "version": 2,
-
   "installCommand": "npm install",
-  "buildCommand": "npm run build-frontend", // <--- THIS MUST BE CHANGED
+  "buildCommand": "npm run build-frontend",
   "outputDirectory": "dist",
-
   "functions": {
     "api/index.js": {
-      "runtime": "@vercel/node@3.0.0", // You might consider updating this to "nodejs18.x" or "nodejs20.x" for newer Node.js support
+      "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 30
     }
   },
-
   "routes": [
     {
       "src": "/api/(.*)",
