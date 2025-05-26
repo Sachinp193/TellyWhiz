@@ -1,5 +1,9 @@
+/// <reference types="vitest/globals" />
 // server/tests/tmdb.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mocked } from 'vitest';
+import type { storage as StorageType } from '../storage';
+import type { tmdbClient as TmdbClientType } from '../tmdb';
 
 // Use vi.hoisted to ensure mockAxiosGet is available to the hoisted vi.mock factory
 const { mockAxiosGet } = vi.hoisted(() => {
@@ -187,11 +191,11 @@ describe('TMDB Service Functions', () => {
   });
 
   describe('getSeasons', () => {
-    let storageMock;
+    let storageMock: Mocked<typeof StorageType>;
 
     beforeEach(async () => {
       const storageModule = await import('../storage');
-      storageMock = storageModule.storage;
+      storageMock = storageModule.storage as Mocked<typeof StorageType>;
       (storageMock.getSeasonsByShowId as vi.Mock).mockReset();
     });
 
@@ -218,16 +222,16 @@ describe('TMDB Service Functions', () => {
   });
 
   describe('getEpisodes', () => {
-    let storageMock;
-    let originalTmdbClientGetSeasons; 
+    let storageMock: Mocked<typeof StorageType>;
+    let originalTmdbClientGetSeasons: typeof TmdbClientType.getSeasons; 
 
     beforeEach(async () => {
       const storageModule = await import('../storage');
-      storageMock = storageModule.storage;
+      storageMock = storageModule.storage as Mocked<typeof StorageType>;
       (storageMock.getEpisodesByShowId as vi.Mock).mockReset();
       
       originalTmdbClientGetSeasons = tmdbClient.getSeasons; 
-      tmdbClient.getSeasons = vi.fn(); 
+      tmdbClient.getSeasons = vi.fn() as Mocked<typeof TmdbClientType.getSeasons>; 
     });
 
     afterEach(() => {

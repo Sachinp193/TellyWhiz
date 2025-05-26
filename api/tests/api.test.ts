@@ -1,3 +1,4 @@
+/// <reference types="vitest/globals" />
 import request from 'supertest';
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
 import axios from 'axios'; // Import axios to spy on its methods after mocking
@@ -49,23 +50,38 @@ vi.mock('axios', async (importOriginal) => {
     throw new Error(`[TEST MOCK AXIOS] Initial mockGet: Attempted unmocked GET request to ${url}`);
   });
 
-  return {
-    ...actualAxios,
-    default: {
-      ...actualAxios.default,
-      create: vi.fn((config) => ({
-        ...(actualAxios.default ? actualAxios.default.create(config) : {}), // Spread real instance properties if any, then override
-        get: mockGet, // Instance get uses the same shared mockGet
-        post: vi.fn(),
+  // This is the mock object that will be seen as the `axios` module's default export
+  const mockAxiosModuleExports = {
+    create: vi.fn((config) => {
+      // Call the original actualAxios.create if it exists, otherwise mock a basic structure.
+      // Note: actualAxios itself is the default export, so actualAxios.create is correct.
+      const createdInstance = actualAxios.create ? actualAxios.create(config) : { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), defaults: { headers: {} } };
+      return {
+        ...createdInstance, // Spread real instance properties/methods
+        get: mockGet,       // Override 'get' for the created instance to use our shared mock
+        post: vi.fn(),      // Mock other methods for the instance as needed
         put: vi.fn(),
         delete: vi.fn(),
-      })),
-      get: mockGet, // Static get uses the shared mockGet
-      post: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      isAxiosError: actualAxios.isAxiosError
-    },
+      };
+    }),
+    get: mockGet, // Static .get uses the shared mockGet
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    isAxiosError: actualAxios.isAxiosError, // Make sure isAxiosError is available
+    // Include any other static properties/methods from actualAxios that might be used
+    // For example: CancelToken: actualAxios.CancelToken, etc.
+    // If not sure, it's safer to spread actualAxios properties that are not functions,
+    // but be careful not to overwrite your mocks.
+  };
+
+  return {
+    __esModule: true, // Indicate that this is an ES module mock
+    default: mockAxiosModuleExports, // This is what `import axios from 'axios'` will receive
+    // Optionally, make named exports available if your code uses them (e.g., import { isAxiosError } from 'axios')
+    // For robust mocking, mirror the actual module structure.
+    isAxiosError: actualAxios.isAxiosError, // Example if isAxiosError was also a named export
+    // ... add other named exports if used ...
   };
 });
 
@@ -75,7 +91,7 @@ import { storage } from '../storage'; // Import real storage
 import { db } from '../../db';
 import * as schema from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import { type SuperTest, type Test, type Response } from 'supertest';
+import { type SuperTest, type Test, type Response, type TestAgent } from 'supertest';
 
 // Interface for mock show data (previously defined)
 interface MockShow {
@@ -89,8 +105,8 @@ const registerUser = async (username: string, password?: string): Promise<Respon
   return request(app).post('/api/auth/register').send({ username, password });
 };
 
-const loginUser = async (username: string, password?: string): Promise<SuperTest<Test>> => {
-  const agent: SuperTest<Test> = request.agent(app);
+const loginUser = async (username: string, password?: string): Promise<TestAgent> => {
+  const agent: TestAgent = request.agent(app);
   await agent.post('/api/auth/login').send({ username, password });
   return agent;
 };

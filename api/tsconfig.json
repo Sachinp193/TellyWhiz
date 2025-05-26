@@ -14,7 +14,9 @@
     "moduleResolution": "bundler", // Or "NodeNext"
     "types": ["node", "vite/client"], // To help with Vite/Vitest types
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true
     // "rootDir": "." // Ensure this is not uncommented unless sure
   },
   "include": [
