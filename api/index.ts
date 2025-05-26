@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import pool from './db.ts';
+import pool from './db.js';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -52,6 +52,7 @@ app.post('/api/users/:userId/series', async (req: Request, res: Response) => { /
 });
 
 app.use((req, res, next) => {
+  console.log(`[API] Request received: ${req.method} ${req.path}`); // New log line
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
