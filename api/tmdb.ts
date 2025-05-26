@@ -1,4 +1,4 @@
-console.log('[Original tmdb.ts] Module loaded - top of file');
+// console.log('[Original tmdb.ts] Module loaded - top of file');
 import axios, { AxiosError } from "axios";
 import { storage } from "./storage";
 
@@ -105,7 +105,7 @@ const genreMap = new Map([
 // Simulate TVDB API for development using TMDB API
 export const tmdbClient = {
   async searchShows(query: string) {
-    console.log('[Original tmdb.ts] searchShows function called with query:', query);
+    // console.log('[Original tmdb.ts] searchShows function called with query:', query);
     await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = "/search/tv";
     const queryParams = { query, include_adult: false, language: "en-US", page: 1 };
@@ -137,7 +137,7 @@ export const tmdbClient = {
   },
   
   async getShowDetails(showId: number) {
-    console.log('[Original tmdb.ts] getShowDetails function called with id:', showId);
+    // console.log('[Original tmdb.ts] getShowDetails function called with id:', showId);
     await getTmdbConfiguration(); // Ensure config is fetched
     const endpoint = `/tv/${showId}`;
     console.log(`Calling TMDB API: ${endpoint}`);
