@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { storage } from '../storage'; // Adjust path as needed
 import * as schema from '../../shared/schema'; // Adjust path as needed
 import { ZodError } from 'zod';
@@ -20,7 +20,7 @@ let registerUserHandler: (req: Request, res: Response, next?: NextFunction) => P
 let localStrategyVerifyCallback: IVerifyFunction;
 
 // Mock dependencies
-vi.mock('bcrypt');
+vi.mock('bcryptjs');
 vi.mock('../storage');
 
 // Properly mock passport module

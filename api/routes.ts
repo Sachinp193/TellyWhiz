@@ -5,7 +5,7 @@ import { tmdbClient } from "./tmdb";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { db } from "@db";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
