@@ -7,8 +7,7 @@
     "api/index.js": {
       "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
-      "maxDuration": 30,
-      "regions": ["iad1"]
+      "maxDuration": 30
     }
   },
   "routes": [
@@ -20,5 +19,6 @@
       "src": "/(.*)",
       "dest": "/dist/$1"
     }
-  ]
+  ],
+  "regions": ["iad1"]
 }
