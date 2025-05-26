@@ -3,6 +3,7 @@ import { storage } from "./storage";
 
 // TMDB API configuration
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const TMDB_V4_ACCESS_TOKEN = process.env.TMDB_V4_ACCESS_TOKEN;
 
 /**
  * Optional TMDB Proxy Base URL.
@@ -17,16 +18,12 @@ const TMDB_PROXY_BASE_URL = process.env.TMDB_API_BASE_URL;
 const usingProxy = !!TMDB_PROXY_BASE_URL;
 const finalApiBaseUrl = TMDB_PROXY_BASE_URL || "https://api.themoviedb.org/3";
 
-// Log whether proxy is being used
+// Logging for connection type (direct or proxy) and auth method is handled during axios setup.
+// Simple log for base URL:
 if (usingProxy) {
-  console.log(`[TMDB Client] Using TMDB Proxy at: ${finalApiBaseUrl}`);
-  // When using a proxy, the TMDB_API_KEY in this client's environment is not directly sent to TMDB by this client.
-  // The proxy server (`api/tmdb-proxy.ts`) is responsible for adding its own `PROXY_TMDB_API_KEY`.
+    console.log(`[TMDB Client] Configured to use TMDB Proxy. Base URL: ${finalApiBaseUrl}`);
 } else {
-  console.log(`[TMDB Client] Connecting directly to TMDB at: ${finalApiBaseUrl}`);
-  if (!TMDB_API_KEY) {
-    console.error("CRITICAL ERROR: TMDB_API_KEY is not set in this application's environment. Direct TMDB API calls will fail.");
-  }
+    console.log(`[TMDB Client] Configured for direct connection to TMDB. Base URL: ${finalApiBaseUrl}`);
 }
 
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"; // Fallback
@@ -34,21 +31,33 @@ const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"; // Fallback
 let tmdbApiConfig: any = null;
 let dynamicImageBaseUrl: string = TMDB_IMAGE_BASE_URL; // Initialize with fallback
 
-// Prepare params for axios instance
-const axiosParams: any = {};
-if (!usingProxy) {
-  // Only add api_key to client requests if NOT using the proxy.
-  // If using the proxy, the proxy server will add its own key.
+const headers: Record<string, string> = {
+  "Content-Type": "application/json",
+  "Accept": "application/json",
+};
+const axiosParams: Record<string, string> = {};
+
+if (usingProxy) {
+  // No auth headers or params needed from this client when using proxy; proxy handles it.
+  console.log(`[TMDB Client] Using TMDB Proxy at: ${finalApiBaseUrl}. Proxy will handle auth.`);
+} else if (TMDB_V4_ACCESS_TOKEN) {
+  console.log("[TMDB Client] Using TMDB v4 Access Token for authentication.");
+  headers["Authorization"] = `Bearer ${TMDB_V4_ACCESS_TOKEN}`;
+  // Ensure TMDB_API_KEY is not sent if v4 token is used
+  if (TMDB_API_KEY) {
+    console.warn("[TMDB Client] Both TMDB_V4_ACCESS_TOKEN and TMDB_API_KEY are set. Prioritizing v4 Access Token.");
+  }
+} else if (TMDB_API_KEY) {
+  console.log("[TMDB Client] Using TMDB v3 API Key for authentication.");
   axiosParams.api_key = TMDB_API_KEY;
+} else {
+  console.error("CRITICAL ERROR: No TMDB authentication method configured (TMDB_V4_ACCESS_TOKEN or TMDB_API_KEY missing) and not using proxy. TMDB API calls will fail.");
 }
 
 const api = axios.create({
   baseURL: finalApiBaseUrl,
-  params: axiosParams, 
-  headers: {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-  },
+  params: axiosParams,
+  headers: headers,
 });
 
 async function getTmdbConfiguration() {
