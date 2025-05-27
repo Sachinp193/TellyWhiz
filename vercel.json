@@ -1,10 +1,10 @@
 {
   "version": 2,
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build-frontend",
   "outputDirectory": "dist",
   "functions": {
-    "index.ts": {
+    "api/index.ts": { 
       "runtime": "nodejs18.x",
       "memory": 1024,
       "maxDuration": 30
@@ -13,7 +13,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/index.ts"
+      "dest": "/api/index.ts" 
     },
     {
       "src": "/(.*)",
