@@ -86,10 +86,10 @@ vi.mock('axios', async (importOriginal) => {
 });
 
 // Import app AFTER all vi.mock directives
-import app from '../index';
-import { storage } from '../storage'; // Import real storage
+import app from '../index.js';
+import { storage } from '../storage.js'; // Import real storage
 import { db } from '../../db';
-import * as schema from '../../shared/schema';
+import * as schema from '../../shared/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import { type SuperTest, type Test, type Response, type TestAgent } from 'supertest';
 
