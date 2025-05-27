@@ -11,7 +11,7 @@
   "dev": "npm run build-frontend && npm run build-backend && concurrently \"vite\" \"nodemon --watch api --exec ts-node api/index.ts\"",
   "build": "npm run build-frontend && npm run build-backend", 
   "build-frontend": "vite build", 
-  "build-backend": "esbuild api/index.ts --platform=node --bundle --format=esm --outfile=api/index.js", 
+  "build-backend": "tsc -p api/tsconfig.json", 
   "db:migrate": "drizzle-kit migrate --config=./drizzle.config.ts",
   "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
   "db:studio": "drizzle-kit studio --config=./drizzle.config.ts",
