@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "functions": {
     "index.ts": {
-      "runtime": "@vercel/node@3.0.0",
+      "runtime": "nodejs18.x",
       "memory": 1024,
       "maxDuration": 30
     }
