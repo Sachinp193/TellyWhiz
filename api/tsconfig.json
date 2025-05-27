@@ -17,7 +17,8 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./dist" // Added outDir
+    "outDir": "./dist", // Added outDir
+    "isolatedModules": true
     // "rootDir": "." // Ensure this is not uncommented unless sure
   },
   "include": [

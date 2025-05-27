@@ -1,11 +1,11 @@
 {
   "version": 2,
   "installCommand": "npm install",
-  "buildCommand": "npm run build-frontend",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/index.ts": { 
-      "runtime": "nodejs18.x",
+    "index.ts": {
+      "runtime": "@vercel/node@3.0.0",
       "memory": 1024,
       "maxDuration": 30
     }
@@ -13,7 +13,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.ts" 
+      "dest": "/index.ts"
     },
     {
       "src": "/(.*)",
