@@ -9,7 +9,7 @@ import {
   userEpisodes,
   userLists,
   listShows,
-} from "../../shared/schema.ts";
+} from "../../shared/schema";
 
 export const storage = {
   // User operations

@@ -17,7 +17,7 @@
     "allowImportingTsExtensions": false,
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "vitest/globals"],
     "paths": {
       "@db": ["./db/index.ts"],
       "@db/*": ["./db/*"],

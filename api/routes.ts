@@ -1,20 +1,20 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage.js";
+import { storage } from "./storage"; // Removed .js
 // import { tvdbClient } from "./tvdb"; // Renamed for consistency
-import * as tvdbClient from './tvdb.js';
+import * as tvdbClient from './tvdb'; // Removed .js
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import { db } from "@db";
-import * as schema from "../../shared/schema.ts";
+import * as schema from "../../shared/schema"; // Removed .ts
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import pgSessionConnect from "connect-pg-simple";
-import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors.js';
+import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors'; // Removed .js
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {

@@ -16,11 +16,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "outDir": "./dist" // Added outDir
     // "rootDir": "." // Ensure this is not uncommented unless sure
   },
   "include": [
-    "*.ts" // Includes all .ts files directly in the api/ folder
+    "*.ts", // Includes all .ts files directly in the api/ folder
+    "../shared/**/*.ts" // Added shared path
   ],
   "exclude": [
     "tests", // Excludes the api/tests/ directory

@@ -1,4 +1,4 @@
-import * as schema from '../shared/schema.js'; // Ensure schema is imported
+import * as schema from '../shared/schema'; // Removed .js
 import { drizzle as drizzleNeonOriginal, NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { Pool as NeonPoolOriginal, neonConfig } from '@neondatabase/serverless';
 import { drizzle as drizzlePg, NodePgDatabase } from 'drizzle-orm/node-postgres';
