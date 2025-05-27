@@ -1,4 +1,4 @@
-import 'tsconfig-paths/register';
+import 'tsconfig-paths/register.js';
 import express, { type Request, Response, NextFunction } from "express";
 import pool from './db.js';
 import { registerRoutes } from "./routes.js";
