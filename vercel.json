@@ -1,24 +1,14 @@
 {
   "version": 2,
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
   "functions": {
     "index.ts": {
-      "runtime": "@vercel/node@3.0.0",
-      "memory": 1024,
-      "maxDuration": 30
+      "runtime": "@vercel/node@3.0.0"
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/$1"
     }
-  ],
-  "regions": ["iad1"]
+  ]
 }
