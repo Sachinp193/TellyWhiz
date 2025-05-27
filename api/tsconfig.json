@@ -24,11 +24,10 @@
     "rootDir": "../"
   },
   "include": [
-    "*.ts", // Includes all .ts files directly in the api/ folder
-    "../shared/**/*.ts" // Added shared path
+    "./**/*.ts",        // To capture all TS files within the api/ directory
+    "../shared/**/*.ts" // To capture shared files from project root
   ],
   "exclude": [
-    "tests", // Excludes the api/tests/ directory
-    "**/*.test.ts" // Double ensure no test files are picked up
+    "./tests/**"       // To exclude the api/tests/ directory
   ]
 }
