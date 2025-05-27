@@ -7,6 +7,8 @@
     "target": "ES2022",
     "noEmit": false,
     "module": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",

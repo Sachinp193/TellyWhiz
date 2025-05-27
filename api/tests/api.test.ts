@@ -15,7 +15,6 @@ const mockGetTopRatedShowsFromTMDB = vi.fn();
 const mockGetGenresFromTMDB = vi.fn();
 
 // Mock for '../tvdb'
-vi.mock('../tvdb.js', () => {
   // console.log('[Test Mock Factory ../tvdb] Attempting to execute factory for tvdbClient object literal.');
   return {
     __esModule: true,
