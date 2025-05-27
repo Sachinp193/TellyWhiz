@@ -20,9 +20,13 @@ export const searchShows = async (query: string): Promise<any[]> => {
   console.log(`searchShows called with query: ${query}`);
   try {
     const response = await tvdbApi.get(`/search?q=${encodeURIComponent(query)}`);
-    // TVDB search endpoint (/search) often returns a flat array in `response.data.data`
-    // Each object in the array represents a search result.
-    const rawResults = response.data?.data;
+    // TVDB search endpoint (/search) can return results in response.data or response.data.data
+    let rawResults = null;
+    if (Array.isArray(response.data)) {
+      rawResults = response.data;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      rawResults = response.data.data;
+    }
 
     if (!rawResults || !Array.isArray(rawResults)) {
       console.error(`No search results data found or data is not an array for query "${query}" from TVDB.`);

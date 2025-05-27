@@ -117,6 +117,17 @@ describe('TVDB Service Functions', () => {
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
+    it('should fetch, transform, and return search results if data is directly in response.data', async () => {
+      // Test case for when results are directly in response.data
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: mockTvdbSearchResponse });
+      const result = await tvdbClient.searchShows(query);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(`searchShows called with query: ${query}`);
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(`/search?q=${encodeURIComponent(query)}`);
+      expect(result).toEqual(expectedTransformedSearchResults);
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
     it('should return an empty array and log an error if the API call fails', async () => {
       const errorMessage = 'TVDB API Error for Search';
       mockAxiosInstance.get.mockRejectedValueOnce(new Error(errorMessage));

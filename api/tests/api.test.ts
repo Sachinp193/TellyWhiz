@@ -86,12 +86,12 @@ vi.mock('axios', async (importOriginal) => {
 });
 
 // Import app AFTER all vi.mock directives
-import app from '../index';
+import app from '@api/index';
 import { storage } from '../storage'; // Import real storage
 import { db } from '../../db';
 import * as schema from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import { type SuperTest, type Test, type Response, type TestAgent } from 'supertest';
+import { type SuperTest, type Test, type Response, type SuperAgent } from 'supertest';
 
 // Interface for mock show data (previously defined)
 interface MockShow {
@@ -105,8 +105,8 @@ const registerUser = async (username: string, password?: string): Promise<Respon
   return request(app).post('/api/auth/register').send({ username, password });
 };
 
-const loginUser = async (username: string, password?: string): Promise<TestAgent> => {
-  const agent: TestAgent = request.agent(app);
+const loginUser = async (username: string, password?: string): Promise<SuperAgent<Test>> => {
+  const agent: SuperAgent<Test> = request.agent(app);
   await agent.post('/api/auth/login').send({ username, password });
   return agent;
 };

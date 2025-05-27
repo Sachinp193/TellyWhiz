@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { storage } from '../storage'; // Adjust path as needed
 import * as schema from '../../shared/schema'; // Adjust path as needed
 import { ZodError } from 'zod';
-import { Strategy as LocalStrategy, type IVerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
+import { Strategy as LocalStrategy, type VerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { PassportStatic } from 'passport'; // For typing the mock
 
@@ -17,7 +17,7 @@ interface User {
 
 // Variables to hold route handlers and strategy verify function
 let registerUserHandler: (req: Request, res: Response, next?: NextFunction) => Promise<void>;
-let localStrategyVerifyCallback: IVerifyFunction;
+let localStrategyVerifyCallback: VerifyFunction;
 
 // Mock dependencies
 vi.mock('bcryptjs');
@@ -111,7 +111,7 @@ beforeEach(async () => {
   // This mock must be before importing '../routes' or anything that calls `new LocalStrategy`
   vi.mock('passport-local', () => {
     return {
-      Strategy: vi.fn().mockImplementation((optionsOrVerify: any, verify?: IVerifyFunction) => {
+      Strategy: vi.fn().mockImplementation((optionsOrVerify: any, verify?: VerifyFunction) => {
         if (typeof optionsOrVerify === 'function') {
           localStrategyVerifyCallback = optionsOrVerify;
         } else if (typeof verify === 'function') {
