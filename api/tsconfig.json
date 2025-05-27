@@ -19,8 +19,9 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist", // Added outDir
-    "isolatedModules": true
-    // "rootDir": "." // Ensure this is not uncommented unless sure
+    "isolatedModules": true,
+    "noEmit": false,
+    "rootDir": "."
   },
   "include": [
     "*.ts", // Includes all .ts files directly in the api/ folder
