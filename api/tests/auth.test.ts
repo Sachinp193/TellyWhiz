@@ -1,10 +1,10 @@
 /// <reference types="vitest/globals" />
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import bcrypt from 'bcryptjs';
-import { storage } from '../storage'; // Adjust path as needed
-import * as schema from '../../shared/schema'; // Adjust path as needed
+import { storage } from '../storage.js'; // Adjust path as needed
+import * as schema from '../../shared/schema.js'; // Adjust path as needed
 import { ZodError } from 'zod';
-import { Strategy as LocalStrategy, type IVerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
+import { Strategy as LocalStrategy, type VerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { PassportStatic } from 'passport'; // For typing the mock
 
@@ -17,11 +17,11 @@ interface User {
 
 // Variables to hold route handlers and strategy verify function
 let registerUserHandler: (req: Request, res: Response, next?: NextFunction) => Promise<void>;
-let localStrategyVerifyCallback: IVerifyFunction;
+let localStrategyVerifyCallback: VerifyFunction;
 
 // Mock dependencies
 vi.mock('bcryptjs');
-vi.mock('../storage');
+vi.mock('../storage.js');
 
 // Properly mock passport module
 vi.mock('passport', async (importOriginal) => {
@@ -111,7 +111,7 @@ beforeEach(async () => {
   // This mock must be before importing '../routes' or anything that calls `new LocalStrategy`
   vi.mock('passport-local', () => {
     return {
-      Strategy: vi.fn().mockImplementation((optionsOrVerify: any, verify?: IVerifyFunction) => {
+      Strategy: vi.fn().mockImplementation((optionsOrVerify: any, verify?: VerifyFunction) => {
         if (typeof optionsOrVerify === 'function') {
           localStrategyVerifyCallback = optionsOrVerify;
         } else if (typeof verify === 'function') {
@@ -123,7 +123,7 @@ beforeEach(async () => {
   });
 
   // Dynamically import routes to ensure mocks are applied
-  const { registerRoutes } = await import('../routes');
+  const { registerRoutes } = await import('../routes.js');
   const expressModule = await import('express');
   const app: Application = expressModule.default();
   app.use(expressModule.json());
