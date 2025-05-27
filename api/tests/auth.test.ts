@@ -1,8 +1,8 @@
 /// <reference types="vitest/globals" />
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import bcrypt from 'bcryptjs';
-import { storage } from '../storage.js'; // Added .js
-import * as schema from '../../shared/schema.js'; // Added .js
+import { storage } from '@api/storage.js'; // Changed to alias
+import * as schema from '@shared/schema.js'; // Changed to alias
 import { ZodError } from 'zod';
 import { Strategy as LocalStrategy, type VerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
 import type { Request, Response, NextFunction, Application, Express } from 'express';
@@ -21,7 +21,7 @@ let localStrategyVerifyCallback: VerifyFunction;
 
 // Mock dependencies
 vi.mock('bcryptjs');
-vi.mock('../storage.js'); // Added .js
+vi.mock('@api/storage.js'); // Changed to alias
 
 // Properly mock passport module
 vi.mock('passport', async (importOriginal) => {
@@ -119,7 +119,7 @@ beforeEach(async () => {
   });
 
   // Dynamically import routes to ensure mocks are applied
-  const { registerRoutes } = await import('../routes.js'); // Added .js
+  const { registerRoutes } = await import('@api/routes.js'); // Changed to alias
   const expressModule = await import('express');
   const app: Application = expressModule.default();
   app.use(expressModule.json());

@@ -8,7 +8,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import { db } from "@db";
-import * as schema from "../../shared/schema.js"; // Added .js
+import * as schema from "@shared/schema.js"; // Changed to alias
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";
