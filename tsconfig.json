@@ -22,8 +22,7 @@
       "@db": ["./db/index.ts"],
       "@db/*": ["./db/*"],
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"],
-      "@api/*": ["./api/*"]
+      "@shared/*": ["./shared/*"]
     }
   }
 }
