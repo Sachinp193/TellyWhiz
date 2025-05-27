@@ -7,7 +7,8 @@
       "@db": ["./db/index.ts"], // Paths are now relative to project root (due to baseUrl)
       "@db/*": ["./db/*"],
       "@/*": ["./client/src/*"], // This might not be needed for API but harmless
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@api/*": ["./api/*"]
     },
     "module": "ESNext",
     "target": "ESNext", // Or "ES2022"

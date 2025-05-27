@@ -20,7 +20,7 @@
       "@db/*": ["./db/*"],
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
-      "@api/*": ["./api/dist/*"]
+      "@api/*": ["./api/*"]
     }
   },
   "include": [
