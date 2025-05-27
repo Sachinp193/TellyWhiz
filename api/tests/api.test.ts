@@ -15,7 +15,7 @@ const mockGetTopRatedShowsFromTMDB = vi.fn();
 const mockGetGenresFromTMDB = vi.fn();
 
 // Mock for '../tvdb'
-vi.mock('../tvdb.js', () => {
+vi.mock('../tvdb', () => {
   // console.log('[Test Mock Factory ../tvdb] Attempting to execute factory for tvdbClient object literal.');
   return {
     __esModule: true,
@@ -71,10 +71,10 @@ vi.mock('axios', async () => {
 });
 
 // Import app AFTER all vi.mock directives
-import app from '../index.js';
-import { storage } from '../storage.js'; // Import real storage
-import { db } from '../../db.js';
-import * as schema from '../../shared/schema.js';
+import app from '../index';
+import { storage } from '../storage'; // Import real storage
+import { db } from '../../db';
+import * as schema from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { type SuperTest, type Test, type Response } from 'supertest';
 
