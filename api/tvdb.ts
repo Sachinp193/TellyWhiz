@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors'; // Removed .js
+import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors.js'; // Added .js
 
 // Define the TheTVDB API base URL
 const TVDB_BASE_URL = 'https://api4.thetvdb.com/v4';

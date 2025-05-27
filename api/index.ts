@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import pool from './db.js';
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
 
 const app = express();
 app.use(express.json());
