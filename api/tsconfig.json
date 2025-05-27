@@ -18,10 +18,10 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./dist", // Added outDir
+    "outDir": "./api/dist/",
     "isolatedModules": true,
     "noEmit": false,
-    "rootDir": "."
+    "rootDir": "../"
   },
   "include": [
     "*.ts", // Includes all .ts files directly in the api/ folder
