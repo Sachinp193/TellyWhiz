@@ -1,11 +1,11 @@
 /// <reference types="vitest/globals" />
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import bcrypt from 'bcryptjs';
 import { storage } from '../storage.js'; // Adjust path as needed
 import * as schema from '../../shared/schema.js'; // Adjust path as needed
 import { ZodError } from 'zod';
 import { Strategy as LocalStrategy, type VerifyFunction } from 'passport-local'; // Corrected import for IVerifyFunction
-import type { Request, Response, NextFunction, Application } from 'express';
+import type { Request, Response, NextFunction, Application, Express } from 'express';
 import type { PassportStatic } from 'passport'; // For typing the mock
 
 // Type for the user object, adjust as necessary
@@ -28,11 +28,7 @@ vi.mock('passport', async (importOriginal) => {
   const actualPassport = await importOriginal<typeof import('passport')>(); // Ensure 'passport' type is used
 
   const MOCK_PASSPORT_INSTANCE: Partial<PassportStatic> = { // Use Partial for easier mocking
-    use: vi.fn((strategy: any) => {
-      // This is a simplified capture; actual LocalStrategy instantiation in app code
-      // might pass the verify callback directly or as part of options.
-      // We will capture it more reliably by mocking LocalStrategy constructor.
-    }),
+    use: vi.fn().mockReturnThis() as any, // Changed to mockReturnThis as per instructions
     authenticate: vi.fn(() => (req: Request, res: Response, next: NextFunction) => next()),
     serializeUser: vi.fn((fn) => fn), // Pass through for type checking if needed
     deserializeUser: vi.fn((fn) => fn),
@@ -133,7 +129,7 @@ beforeEach(async () => {
   app.use(passportMock.initialize!()); // Use non-null assertion if sure it's mocked
   app.use(passportMock.session!());
   
-  await registerRoutes(app); // This should call new LocalStrategy() and passport.use()
+  await registerRoutes(app as Express); // Cast app to Express
 
   // Find the registerUserHandler from the app stack
   const stack = app._router?.stack || [];

@@ -1,15 +1,15 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
-// import { tmdbClient } from "./tmdb";
+// import { tvdbClient } from "./tvdb"; // Renamed for consistency
 import * as tvdbClient from './tvdb.js';
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import { db } from "@db";
-import * as schema from "../../shared/schema.js";
-import { eq } from "drizzle-orm";
+import * as schema from "../../shared/schema.ts";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -566,11 +566,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       const savedSeasons = await storage.saveSeasons(seasonsToSave);
-      const seasonNumberToDbIdMap = new Map();
-      savedSeasons.forEach(s => {
+      const seasonNumberToDbIdMap = new Map<number, number>();
+      savedSeasons.forEach((s: schema.Season) => {
         // storage.saveSeasons returns an array of seasons as they are in the DB, including their DB `id` and `number`.
         // Ensure `s.number` and `s.id` are correct based on `storage.saveSeasons` return type.
-        if (s.number !== null && s.number !== undefined && s.id !== null && s.id !== undefined) {
+        // Also, ensure s.number and s.id are not null before using them.
+        if (s.number !== null && s.id !== null) { // Check for null directly
             seasonNumberToDbIdMap.set(s.number, s.id);
         }
       });

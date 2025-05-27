@@ -9,12 +9,13 @@ const mockGetShowDetails = vi.fn();
 const mockGetSeasons = vi.fn();
 const mockGetEpisodes = vi.fn();
 const mockGetCast = vi.fn();
-const mockGetPopularShowsFromTMDB = vi.fn();
-const mockGetRecentShowsFromTMDB = vi.fn();
-const mockGetTopRatedShowsFromTMDB = vi.fn();
-const mockGetGenresFromTMDB = vi.fn();
+const mockGetPopularShowsFromTVDB = vi.fn(); // Renamed
+const mockGetRecentShowsFromTVDB = vi.fn(); // Renamed
+const mockGetTopRatedShowsFromTVDB = vi.fn(); // Renamed
+const mockGetGenresFromTVDB = vi.fn(); // Renamed
 
 // Mock for '../tvdb'
+vi.mock('../tvdb.js', () => { // Added .js extension as per other imports, and corrected mock structure
   // console.log('[Test Mock Factory ../tvdb] Attempting to execute factory for tvdbClient object literal.');
   return {
     __esModule: true,
@@ -26,10 +27,10 @@ const mockGetGenresFromTMDB = vi.fn();
     getSeasons: mockGetSeasons,
     getEpisodes: mockGetEpisodes,
     getCast: mockGetCast,
-    getPopularShows: mockGetPopularShowsFromTMDB,
-    getRecentShows: mockGetRecentShowsFromTMDB,
-    getTopRatedShows: mockGetTopRatedShowsFromTMDB,
-    getGenres: mockGetGenresFromTMDB,
+    getPopularShows: mockGetPopularShowsFromTVDB, // Renamed
+    getRecentShows: mockGetRecentShowsFromTVDB, // Renamed
+    getTopRatedShows: mockGetTopRatedShowsFromTVDB, // Renamed
+    getGenres: mockGetGenresFromTVDB, // Renamed
   };
 });
 
@@ -70,10 +71,10 @@ vi.mock('axios', async () => {
 });
 
 // Import app AFTER all vi.mock directives
-import app from '../index.js';
+import app from '../index.ts';
 import { storage } from '../storage.js'; // Import real storage
-import { db } from '../../db.js';
-import * as schema from '../../shared/schema.js';
+import { db } from '../../db/index.ts';
+import * as schema from '../../shared/schema.ts';
 import { eq, sql } from 'drizzle-orm';
 import { type SuperTest, type Test, type Response } from 'supertest';
 
@@ -110,11 +111,11 @@ describe('GET /api/search', () => {
     mockSearchShows.mockResolvedValue([]);
     mockGetShowDetails.mockResolvedValue(null);
     // These should align with the new naming in the tvdbClient mock if they were changed
-    // (e.g., getPopularShows vs getPopularShowsFromTMDB)
-    mockGetPopularShowsFromTMDB.mockResolvedValue([]); 
-    mockGetRecentShowsFromTMDB.mockResolvedValue([]);
-    mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
-    mockGetGenresFromTMDB.mockResolvedValue([]);
+    // (e.g., getPopularShows vs getPopularShowsFromTVDB)
+    mockGetPopularShowsFromTVDB.mockResolvedValue([]); 
+    mockGetRecentShowsFromTVDB.mockResolvedValue([]);
+    mockGetTopRatedShowsFromTVDB.mockResolvedValue([]);
+    mockGetGenresFromTVDB.mockResolvedValue([]);
   });
 
   it('should return 200 and search results for a valid query', async () => {
@@ -137,8 +138,8 @@ describe('GET /api/search', () => {
     expect(mockSearchShows).not.toHaveBeenCalled();
   });
 
-  it('should return 500 if TMDB API call fails (simulated by tvdbClient.searchShows rejection)', async () => {
-    mockSearchShows.mockRejectedValue(new Error('TMDB API Error'));
+  it('should return 500 if TVDB API call fails (simulated by tvdbClient.searchShows rejection)', async () => {
+    mockSearchShows.mockRejectedValue(new Error('TVDB API Error')); // Renamed Error
     const response = await request(app).get('/api/search?q=ErrorQuery');
     expect(response.status).toBe(500);
     expect(response.body.message).toEqual('Failed to search shows');
@@ -153,7 +154,7 @@ describe('POST /api/user/shows/:id/track', () => {
   type ShowInsertType = typeof schema.shows.$inferInsert;
 
   const showToTrack: ShowInsertType = {
-    tmdbId: 123, name: "Test Show for Tracking", overview: "An overview.",
+    tvdbId: 123, name: "Test Show for Tracking", overview: "An overview.",
     status: "Running", firstAired: "2023-01-01", network: "Test Network",
     runtime: 30, image: "test_image.jpg", banner: "test_banner.jpg",
     rating: 8.0, genres: ["Drama"], year: "2023-Present",
@@ -177,16 +178,16 @@ describe('POST /api/user/shows/:id/track', () => {
     mockGetSeasons.mockResolvedValue([]);
     mockGetEpisodes.mockResolvedValue([]);
     mockGetCast.mockResolvedValue([]);
-    mockGetPopularShowsFromTMDB.mockResolvedValue([]);
-    mockGetRecentShowsFromTMDB.mockResolvedValue([]);
-    mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
-    mockGetGenresFromTMDB.mockResolvedValue([]);
+    mockGetPopularShowsFromTVDB.mockResolvedValue([]); // Renamed
+    mockGetRecentShowsFromTVDB.mockResolvedValue([]); // Renamed
+    mockGetTopRatedShowsFromTVDB.mockResolvedValue([]); // Renamed
+    mockGetGenresFromTVDB.mockResolvedValue([]); // Renamed
     
     mockGetShowDetails.mockImplementation(async (showIdFromRoute: number): Promise<any | null> => {
-      if (showIdFromRoute === showToTrack.tmdbId) {
-        console.log('[Test Mock] mockGetShowDetails providing data for tmdbId:', showToTrack.tmdbId);
+      if (showIdFromRoute === showToTrack.tvdbId) {
+        console.log('[Test Mock] mockGetShowDetails providing data for tvdbId:', showToTrack.tvdbId);
         return { 
-          id: showToTrack.tmdbId, name: showToTrack.name, overview: showToTrack.overview,
+          id: showToTrack.tvdbId, name: showToTrack.name, overview: showToTrack.overview,
           status: showToTrack.status, first_air_date: showToTrack.firstAired,
           networks: [{ name: showToTrack.network }], episode_run_time: [showToTrack.runtime || 0],
           poster_path: showToTrack.image, backdrop_path: showToTrack.banner,
@@ -200,7 +201,7 @@ describe('POST /api/user/shows/:id/track', () => {
 
   afterEach(async () => {
     if (userId) { await db.delete(schema.userShows).where(eq(schema.userShows.userId, userId)); }
-    await db.delete(schema.shows).where(eq(schema.shows.tmdbId, showToTrack.tmdbId));
+    await db.delete(schema.shows).where(eq(schema.shows.tvdbId, showToTrack.tvdbId));
   });
 
   afterAll(async () => {
@@ -209,27 +210,27 @@ describe('POST /api/user/shows/:id/track', () => {
 
   it('should successfully track a new show for an authenticated user', async () => {
     if (!userId) { console.warn("Skipping tracking test: userId not set."); return; }
-    const response = await authenticatedAgent.post(`/api/user/shows/${showToTrack.tmdbId}/track`);
-    expect(mockGetShowDetails).toHaveBeenCalledWith(showToTrack.tmdbId);
+    const response = await authenticatedAgent.post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+    expect(mockGetShowDetails).toHaveBeenCalledWith(showToTrack.tvdbId);
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
       userId: userId, showId: expect.any(Number), status: 'watching', favorite: false,
     });
-    const dbShow = await db.query.shows.findFirst({ where: eq(schema.shows.tmdbId, showToTrack.tmdbId) });
+    const dbShow = await db.query.shows.findFirst({ where: eq(schema.shows.tvdbId, showToTrack.tvdbId) });
     expect(dbShow).toBeDefined();
   });
 
   it('should return 500 when trying to track an already tracked show (due to unique constraint)', async () => {
     if (!userId) { console.warn("Skipping re-tracking test: userId not set."); return; }
-    await authenticatedAgent.post(`/api/user/shows/${showToTrack.tmdbId}/track`);
-    const response = await authenticatedAgent.post(`/api/user/shows/${showToTrack.tmdbId}/track`);
+    await authenticatedAgent.post(`/api/user/shows/${showToTrack.tvdbId}/track`);
+    const response = await authenticatedAgent.post(`/api/user/shows/${showToTrack.tvdbId}/track`);
     expect(mockGetShowDetails).toHaveBeenCalledTimes(2); 
     expect(response.status).toBe(500); 
     expect((response.body as { message: string }).message).toContain('Failed to track show');
   });
 
   it('should return 401 when trying to track a show without authentication', async () => {
-    const response = await request(app).post(`/api/user/shows/${showToTrack.tmdbId}/track`);
+    const response = await request(app).post(`/api/user/shows/${showToTrack.tvdbId}/track`);
     expect(response.status).toBe(401);
     expect((response.body as { message: string }).message).toBe('Unauthorized');
     expect(mockGetShowDetails).not.toHaveBeenCalled(); 
