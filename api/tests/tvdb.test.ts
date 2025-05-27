@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as tvdbClient from '../tvdb';
+import * as tvdbClient from '../tvdb.js';
 import axios from 'axios';
 
 // Mock axios

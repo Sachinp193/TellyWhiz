@@ -1,14 +1,14 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.js";
 // import { tmdbClient } from "./tmdb";
-import * as tvdbClient from './tvdb';
+import * as tvdbClient from './tvdb.js';
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import { db } from "@db";
-import * as schema from "@shared/schema";
+import * as schema from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";
@@ -214,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           watchStatusMap.set(ue.episodeId, ue.watchStatus);
         });
         
-        episodes = episodes.map(episode => ({
+        episodes = episodes.map((episode: any) => ({
           ...episode,
           watchStatus: watchStatusMap.get(episode.id) || "unwatched",
         }));
