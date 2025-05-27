@@ -9,7 +9,7 @@ import {
   userEpisodes,
   userLists,
   listShows,
-} from "@shared/schema";
+} from "../../shared/schema.js";
 
 export const storage = {
   // User operations
@@ -92,12 +92,12 @@ export const storage = {
     if (uniqueSeasons.length === 0) return [];
 
     const existingSeasons = await db.query.seasons.findMany({
-      where: inArray(seasons.tmdbId, uniqueSeasons.map(s => s.tmdbId)),
+      where: inArray(seasons.tmdbId, uniqueSeasons.map((s: any) => s.tmdbId)),
     });
 
-    const existingTmdbIds = new Set(existingSeasons.map(s => s.tmdbId));
+    const existingTmdbIds = new Set(existingSeasons.map((s: any) => s.tmdbId));
 
-    const seasonsToCreate = uniqueSeasons.filter(s => !existingTmdbIds.has(s.tmdbId));
+    const seasonsToCreate = uniqueSeasons.filter((s: any) => !existingTmdbIds.has(s.tmdbId));
 
     if (seasonsToCreate.length > 0) {
       return await db.insert(seasons).values(seasonsToCreate).returning();
@@ -128,12 +128,12 @@ export const storage = {
     if (uniqueEpisodes.length === 0) return [];
 
     const existingEpisodes = await db.query.episodes.findMany({
-      where: inArray(episodes.tmdbId, uniqueEpisodes.map(e => e.tmdbId)),
+      where: inArray(episodes.tmdbId, uniqueEpisodes.map((e: any) => e.tmdbId)),
     });
 
-    const existingTmdbIds = new Set(existingEpisodes.map(e => e.tmdbId));
+    const existingTmdbIds = new Set(existingEpisodes.map((e: any) => e.tmdbId));
 
-    const episodesToCreate = uniqueEpisodes.filter(e => !existingTmdbIds.has(e.tmdbId));
+    const episodesToCreate = uniqueEpisodes.filter((e: any) => !existingTmdbIds.has(e.tmdbId));
 
     if (episodesToCreate.length > 0) {
       return await db.insert(episodes).values(episodesToCreate).returning();
@@ -209,7 +209,7 @@ export const storage = {
       },
     });
 
-    return userShowData.map(us => us.show);
+    return userShowData.map((us: any) => us.show);
   },
 
   getUserShowsByStatus: async (userId: number, status: string) => {
@@ -223,7 +223,7 @@ export const storage = {
       },
     });
 
-    return userShowData.map(us => us.show);
+    return userShowData.map((us: any) => us.show);
   },
 
   getUserFavorites: async (userId: number) => {
@@ -237,7 +237,7 @@ export const storage = {
       },
     });
 
-    return userShowData.map(us => us.show);
+    return userShowData.map((us: any) => us.show);
   },
 
   getUserEpisode: async (userId: number, episodeId: number) => {
@@ -305,7 +305,7 @@ export const storage = {
         progress,
         totalEpisodes,
         lastWatched: watchedEpisodes.length > 0
-          ? new Date(Math.max(...watchedEpisodes.map(e => e.watchedDate?.getTime() || 0)))
+          ? new Date(Math.max(...watchedEpisodes.map((e: any) => e.watchedDate?.getTime() || 0)))
           : null,
         updatedAt: new Date(),
       })
@@ -337,14 +337,14 @@ export const storage = {
 
     const seasonProgress: Record<number, {watched: number, total: number}> = {};
 
-    allEpisodes.forEach(episode => {
+    allEpisodes.forEach((episode: any) => {
       if (!seasonProgress[episode.seasonNumber]) {
         seasonProgress[episode.seasonNumber] = { watched: 0, total: 0 };
       }
       seasonProgress[episode.seasonNumber].total++;
     });
 
-    watchedEpisodes.forEach(userEpisode => {
+    watchedEpisodes.forEach((userEpisode: any) => {
       const seasonNumber = userEpisode.episode.seasonNumber;
       if (seasonProgress[seasonNumber]) {
         seasonProgress[seasonNumber].watched++;

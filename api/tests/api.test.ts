@@ -14,74 +14,59 @@ const mockGetRecentShowsFromTMDB = vi.fn();
 const mockGetTopRatedShowsFromTMDB = vi.fn();
 const mockGetGenresFromTMDB = vi.fn();
 
-// Mock for '../tmdb' - known to have issues with factory execution for the app
-vi.mock('../tmdb', () => {
-  console.log('[Test Mock Factory ../tmdb] Attempting to execute factory for tmdbClient object literal.');
+// Mock for '../tvdb'
+vi.mock('../tvdb', () => {
+  // console.log('[Test Mock Factory ../tvdb] Attempting to execute factory for tvdbClient object literal.');
   return {
     __esModule: true,
-    tmdbClient: {
-      searchShows: mockSearchShows,
-      getShowDetails: mockGetShowDetails,
-      getSeasons: mockGetSeasons,
-      getEpisodes: mockGetEpisodes,
-      getCast: mockGetCast,
-      getPopularShowsFromTMDB: mockGetPopularShowsFromTMDB,
-      getRecentShowsFromTMDB: mockGetRecentShowsFromTMDB,
-      getTopRatedShowsFromTMDB: mockGetTopRatedShowsFromTMDB,
-      getGenresFromTMDB: mockGetGenresFromTMDB,
-    }
+    // The tvdb.ts file exports individual functions, so we mock them directly here.
+    // This structure is correct because routes.ts imports like: import * as tvdbClient from './tvdb';
+    // and then calls tvdbClient.searchShows, etc.
+    searchShows: mockSearchShows,
+    getShowDetails: mockGetShowDetails,
+    getSeasons: mockGetSeasons,
+    getEpisodes: mockGetEpisodes,
+    getCast: mockGetCast,
+    getPopularShows: mockGetPopularShowsFromTMDB,
+    getRecentShows: mockGetRecentShowsFromTMDB,
+    getTopRatedShows: mockGetTopRatedShowsFromTMDB,
+    getGenres: mockGetGenresFromTMDB,
   };
 });
 
-// Mock for 'axios'
-vi.mock('axios', async (importOriginal) => {
-  const actualAxios = await importOriginal<typeof import('axios')>();
-  const mockGet = vi.fn();
+// Define a shared mock for the axios instance methods if needed by tests
+const mockAxiosInstanceForTestFile = {
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+  // Add other methods if your tests expect them on an instance
+};
 
-  // Initial implementation (re-applied in beforeEach)
-  mockGet.mockImplementation(async (url: string, config?: any) => {
-    console.log(`[TEST MOCK AXIOS] Initial mockGet: URL: ${url}`);
-    if (url === '/configuration') {
-      const responseData = { data: {} }; // Fix for TypeError
-      console.log('[TEST MOCK AXIOS] Initial mockGet: Returning for /configuration:', JSON.stringify(responseData));
-      return Promise.resolve(responseData);
-    }
-    console.error(`[TEST MOCK AXIOS] Initial mockGet: Error: Attempted unmocked GET request to ${url}`);
-    throw new Error(`[TEST MOCK AXIOS] Initial mockGet: Attempted unmocked GET request to ${url}`);
-  });
+// Define a shared mock for static axios methods if needed
+const mockStaticAxiosGet = vi.fn();
+// Define other static mocks if needed (post, etc.)
 
-  // This is the mock object that will be seen as the `axios` module's default export
-  const mockAxiosModuleExports = {
-    create: vi.fn((config) => {
-      // Call the original actualAxios.create if it exists, otherwise mock a basic structure.
-      // Note: actualAxios itself is the default export, so actualAxios.create is correct.
-      const createdInstance = actualAxios.create ? actualAxios.create(config) : { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), defaults: { headers: {} } };
-      return {
-        ...createdInstance, // Spread real instance properties/methods
-        get: mockGet,       // Override 'get' for the created instance to use our shared mock
-        post: vi.fn(),      // Mock other methods for the instance as needed
-        put: vi.fn(),
-        delete: vi.fn(),
-      };
-    }),
-    get: mockGet, // Static .get uses the shared mockGet
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-    isAxiosError: actualAxios.isAxiosError, // Make sure isAxiosError is available
-    // Include any other static properties/methods from actualAxios that might be used
-    // For example: CancelToken: actualAxios.CancelToken, etc.
-    // If not sure, it's safer to spread actualAxios properties that are not functions,
-    // but be careful not to overwrite your mocks.
-  };
-
+vi.mock('axios', async () => {
+  // Dynamically import the original axios to get non-function properties like isAxiosError
+  const actualAxios = await import('axios'); 
   return {
-    __esModule: true, // Indicate that this is an ES module mock
-    default: mockAxiosModuleExports, // This is what `import axios from 'axios'` will receive
-    // Optionally, make named exports available if your code uses them (e.g., import { isAxiosError } from 'axios')
-    // For robust mocking, mirror the actual module structure.
-    isAxiosError: actualAxios.isAxiosError, // Example if isAxiosError was also a named export
-    // ... add other named exports if used ...
+    default: {
+      create: vi.fn((config?: any) => ({
+        ...mockAxiosInstanceForTestFile, // Spread your instance mock methods
+        defaults: { headers: { common: {} }, ...config }, // Mimic some defaults structure
+        interceptors: { // Mimic interceptors structure
+          request: { use: vi.fn(), eject: vi.fn() },
+          response: { use: vi.fn(), eject: vi.fn() },
+        },
+      })),
+      get: mockStaticAxiosGet, // Mock for static axios.get(...)
+      post: vi.fn(), // Mock for static axios.post(...)
+      // Add other static methods if used
+      isAxiosError: actualAxios.isAxiosError, // Use the actual isAxiosError
+    },
+    isAxiosError: actualAxios.isAxiosError, // Also export it named if used like: import { isAxiosError } from 'axios'
+    // Add other named exports if your code uses them
   };
 });
 
@@ -91,7 +76,7 @@ import { storage } from '../storage'; // Import real storage
 import { db } from '../../db';
 import * as schema from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import { type SuperTest, type Test, type Response, type TestAgent } from 'supertest';
+import { type SuperTest, type Test, type Response } from 'supertest';
 
 // Interface for mock show data (previously defined)
 interface MockShow {
@@ -105,8 +90,8 @@ const registerUser = async (username: string, password?: string): Promise<Respon
   return request(app).post('/api/auth/register').send({ username, password });
 };
 
-const loginUser = async (username: string, password?: string): Promise<TestAgent> => {
-  const agent: TestAgent = request.agent(app);
+const loginUser = async (username: string, password?: string): Promise<SuperTest<Test>> => {
+  const agent: SuperTest<Test> = request.agent(app);
   await agent.post('/api/auth/login').send({ username, password });
   return agent;
 };
@@ -116,21 +101,18 @@ describe('GET /api/search', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
 
-    // Re-apply axios.get mock implementation (with TypeError fix and logging)
-    (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
-      console.log(`[TEST MOCK AXIOS] beforeEach GET /api/search: mockGet called with URL: ${url}`);
-      if (url === '/configuration') {
-        console.log('[TEST MOCK AXIOS] beforeEach GET /api/search: Returning for /configuration: {"data":{}}');
-        return Promise.resolve({ data: {} }); // THE FIX FOR TypeError
-      }
-      console.error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Error: Attempted unmocked GET request to ${url}`);
-      throw new Error(`[TEST MOCK AXIOS] beforeEach GET /api/search: Attempted unmocked GET request to ${url}`);
-    });
+    // Reset mocks for axios instance and static calls
+    mockAxiosInstanceForTestFile.get.mockReset(); // Adjusted to new mock instance name
+    mockAxiosInstanceForTestFile.post.mockReset();
+    mockStaticAxiosGet.mockReset();
 
-    // Default behaviors for tmdbClient mocks for this suite
+
+    // Default behaviors for tvdbClient mocks for this suite
     mockSearchShows.mockResolvedValue([]);
     mockGetShowDetails.mockResolvedValue(null);
-    mockGetPopularShowsFromTMDB.mockResolvedValue([]);
+    // These should align with the new naming in the tvdbClient mock if they were changed
+    // (e.g., getPopularShows vs getPopularShowsFromTMDB)
+    mockGetPopularShowsFromTMDB.mockResolvedValue([]); 
     mockGetRecentShowsFromTMDB.mockResolvedValue([]);
     mockGetTopRatedShowsFromTMDB.mockResolvedValue([]);
     mockGetGenresFromTMDB.mockResolvedValue([]);
@@ -145,7 +127,8 @@ describe('GET /api/search', () => {
     expect(mockSearchShows).toHaveBeenCalledWith('ValidQuery'); 
     expect(response.status).toBe(200); 
     expect(response.body).toEqual(mockApiShows);
-    expect(axios.get as vi.Mock).toHaveBeenCalledWith('/configuration');
+    // No longer expecting axios.get to be called with /configuration from these specific tests
+    // as tvdbClient is fully mocked.
   });
 
   it('should return 400 if the query is too short', async () => {
@@ -153,16 +136,14 @@ describe('GET /api/search', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ message: 'Query must be at least 2 characters' });
     expect(mockSearchShows).not.toHaveBeenCalled();
-    expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
   });
 
-  it('should return 500 if TMDB API call fails (simulated by tmdbClient.searchShows rejection)', async () => {
+  it('should return 500 if TMDB API call fails (simulated by tvdbClient.searchShows rejection)', async () => {
     mockSearchShows.mockRejectedValue(new Error('TMDB API Error'));
     const response = await request(app).get('/api/search?q=ErrorQuery');
     expect(response.status).toBe(500);
     expect(response.body.message).toEqual('Failed to search shows');
     expect(mockSearchShows).toHaveBeenCalledWith('ErrorQuery');
-    expect(axios.get as vi.Mock).not.toHaveBeenCalledWith('/configuration');
   });
 });
 
@@ -188,16 +169,11 @@ describe('POST /api/user/shows/:id/track', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
-    (axios.get as vi.Mock).mockImplementation(async (url: string, config?: any) => {
-      console.log(`[TEST MOCK AXIOS] beforeEach POST suite: mockGet called with URL: ${url}`);
-      if (url === '/configuration') {
-        console.log('[TEST MOCK AXIOS] beforeEach POST suite: Returning for /configuration: {"data":{}}');
-        return Promise.resolve({ data: {} });
-      }
-      console.error(`[TEST MOCK AXIOS] beforeEach POST suite: Error: Attempted unmocked GET request to ${url}`);
-      throw new Error(`[TEST MOCK AXIOS] beforeEach POST suite: Attempted unmocked GET request to ${url}`);
-    });
-    
+    // Reset mocks for axios instance and static calls
+    mockAxiosInstanceForTestFile.get.mockReset(); // Adjusted
+    mockAxiosInstanceForTestFile.post.mockReset();
+    mockStaticAxiosGet.mockReset();
+
     mockSearchShows.mockResolvedValue([]);
     mockGetSeasons.mockResolvedValue([]);
     mockGetEpisodes.mockResolvedValue([]);
@@ -216,7 +192,7 @@ describe('POST /api/user/shows/:id/track', () => {
           networks: [{ name: showToTrack.network }], episode_run_time: [showToTrack.runtime || 0],
           poster_path: showToTrack.image, backdrop_path: showToTrack.banner,
           vote_average: showToTrack.rating,
-          genres: (showToTrack.genres || []).map(g => ({ name: g, id: Math.random() * 1000 })),
+          genres: (showToTrack.genres || []).map((g: any) => ({ name: g, id: Math.random() * 1000 })),
         };
       }
       return null;
