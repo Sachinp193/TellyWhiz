@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors.js';
 
 // Define the TheTVDB API base URL
 const TVDB_BASE_URL = 'https://api4.thetvdb.com/v4';
@@ -47,8 +48,19 @@ export const searchShows = async (query: string): Promise<any[]> => {
 
     return transformedResults;
   } catch (error: any) {
-    console.error(`Error fetching shows from TVDB for query "${query}":`, error.message);
-    return []; // Return empty array on error
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        throw new NotFoundError(`Search results not found for query "${query}" on TVDB.`);
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) for query "${query}". Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError(`Rate limited by TVDB API when searching for query "${query}".`);
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) for query "${query}": ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching search results for query "${query}": ${error.message}`);
   }
 };
 
@@ -60,8 +72,8 @@ export const getShowDetails = async (showId: number | string): Promise<any | nul
     const rawData = response.data?.data; // Assuming TVDB wraps data in a 'data' property
 
     if (!rawData || !rawData.id || !rawData.name) {
-      console.error(`Essential data missing for showId ${showId} from TVDB.`);
-      return null;
+      // This condition might indicate "not found" if the API returns 200 but empty/invalid data for an ID.
+      throw new NotFoundError(`Show details not found or incomplete for showId ${showId} from TVDB.`);
     }
 
     // Data Transformation
@@ -82,8 +94,22 @@ export const getShowDetails = async (showId: number | string): Promise<any | nul
 
     return transformedShow;
   } catch (error: any) {
-    console.error(`Error fetching show details from TVDB for showId ${showId}:`, error.message);
-    return null; // Return null on error
+    if (error instanceof NotFoundError) throw error; // Re-throw if already specific
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        throw new NotFoundError(`Show with id ${showId} not found on TVDB.`);
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) for showId ${showId}. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError(`Rate limited by TVDB API when fetching showId ${showId}.`);
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) for showId ${showId}: ${error.message}`);
+      }
+    }
+    // Fallback for non-Axios errors or other issues
+    throw new UpstreamApiError(`Unexpected error fetching show details for showId ${showId}: ${error.message}`);
   }
 };
 
@@ -100,8 +126,8 @@ export const getSeasons = async (showId: number | string): Promise<any[]> => {
     const rawSeasons = response.data?.data;
 
     if (!rawSeasons || !Array.isArray(rawSeasons)) {
-      console.error(`No seasons data found or data is not an array for showId ${showId} from TVDB.`);
-      return [];
+      // Assuming if rawSeasons is empty or not an array, it means no seasons were found or data is invalid.
+      throw new NotFoundError(`No seasons found for showId ${showId} from TVDB, or data format is incorrect.`);
     }
 
     const transformedSeasons = rawSeasons
@@ -122,8 +148,22 @@ export const getSeasons = async (showId: number | string): Promise<any[]> => {
 
     return transformedSeasons;
   } catch (error: any) {
-    console.error(`Error fetching seasons from TVDB for showId ${showId}:`, error.message);
-    return []; // Return empty array on error
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        // This might also mean the show itself wasn't found, or it has no seasons.
+        throw new NotFoundError(`Seasons for showId ${showId} not found on TVDB (or show itself not found).`);
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching seasons for showId ${showId}. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError(`Rate limited by TVDB API fetching seasons for showId ${showId}.`);
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching seasons for showId ${showId}: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching seasons for showId ${showId}: ${error.message}`);
   }
 };
 
@@ -138,8 +178,8 @@ export const getEpisodes = async (showId: number | string): Promise<any[]> => {
     const rawEpisodes = response.data?.data?.episodes;
 
     if (!rawEpisodes || !Array.isArray(rawEpisodes)) {
-      console.error(`No episodes data found or data is not an array for showId ${showId} from TVDB.`);
-      return [];
+      // Assuming if rawEpisodes is empty or not an array, it means no episodes were found or data is invalid.
+      throw new NotFoundError(`No episodes found for showId ${showId} from TVDB, or data format is incorrect.`);
     }
 
     const transformedEpisodes = rawEpisodes.map((episode: any) => {
@@ -160,8 +200,22 @@ export const getEpisodes = async (showId: number | string): Promise<any[]> => {
 
     return transformedEpisodes;
   } catch (error: any) {
-    console.error(`Error fetching episodes from TVDB for showId ${showId}:`, error.message);
-    return []; // Return empty array on error
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        // This might also mean the show itself wasn't found, or it has no episodes.
+        throw new NotFoundError(`Episodes for showId ${showId} not found on TVDB (or show itself not found).`);
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching episodes for showId ${showId}. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError(`Rate limited by TVDB API fetching episodes for showId ${showId}.`);
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching episodes for showId ${showId}: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching episodes for showId ${showId}: ${error.message}`);
   }
 };
 
@@ -175,8 +229,8 @@ export const getCast = async (showId: number | string): Promise<any[]> => {
     const rawCast = response.data?.data;
 
     if (!rawCast || !Array.isArray(rawCast)) {
-      console.error(`No cast data found or data is not an array for showId ${showId} from TVDB.`);
-      return [];
+      // Assuming if rawCast is empty or not an array, it means no cast was found or data is invalid.
+      throw new NotFoundError(`No cast found for showId ${showId} from TVDB, or data format is incorrect.`);
     }
 
     const transformedCast = rawCast
@@ -196,8 +250,22 @@ export const getCast = async (showId: number | string): Promise<any[]> => {
 
     return transformedCast;
   } catch (error: any) {
-    console.error(`Error fetching cast from TVDB for showId ${showId}:`, error.message);
-    return []; // Return empty array on error
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        // This might also mean the show itself wasn't found.
+        throw new NotFoundError(`Cast for showId ${showId} not found on TVDB (or show itself not found).`);
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching cast for showId ${showId}. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError(`Rate limited by TVDB API fetching cast for showId ${showId}.`);
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching cast for showId ${showId}: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching cast for showId ${showId}: ${error.message}`);
   }
 };
 
@@ -214,8 +282,7 @@ export const getPopularShows = async (): Promise<any[]> => {
     const rawShows = response.data?.data;
 
     if (!rawShows || !Array.isArray(rawShows)) {
-      console.error('No popular shows data found or data is not an array from TVDB.');
-      return [];
+      throw new NotFoundError('No popular shows found from TVDB, or data format is incorrect.');
     }
 
     const transformedShows = rawShows
@@ -233,8 +300,23 @@ export const getPopularShows = async (): Promise<any[]> => {
 
     return transformedShows;
   } catch (error: any) {
-    console.error('Error fetching popular shows from TVDB:', error.message);
-    return []; // Return empty array on error
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      // Popular shows endpoint might not return 404 for "none found" but rather an empty list.
+      // A 404 here would likely indicate the endpoint /series/popular itself is not found.
+      if (status === 404) {
+        throw new NotFoundError('Popular shows endpoint not found on TVDB.');
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching popular shows. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError('Rate limited by TVDB API fetching popular shows.');
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching popular shows: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching popular shows: ${error.message}`);
   }
 };
 
@@ -246,8 +328,7 @@ export const getRecentShows = async (): Promise<any[]> => {
     const rawShows = response.data?.data;
 
     if (!rawShows || !Array.isArray(rawShows)) {
-      console.error('No recent shows data found or data is not an array from TVDB.');
-      return [];
+      throw new NotFoundError('No recent shows found from TVDB, or data format is incorrect.');
     }
 
     const transformedShows = rawShows
@@ -264,8 +345,21 @@ export const getRecentShows = async (): Promise<any[]> => {
 
     return transformedShows;
   } catch (error: any) {
-    console.error('Error fetching recent shows from TVDB:', error.message);
-    return [];
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        throw new NotFoundError('Recent shows endpoint not found on TVDB.');
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching recent shows. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError('Rate limited by TVDB API fetching recent shows.');
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching recent shows: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching recent shows: ${error.message}`);
   }
 };
 
@@ -277,8 +371,7 @@ export const getTopRatedShows = async (): Promise<any[]> => {
     const rawShows = response.data?.data;
 
     if (!rawShows || !Array.isArray(rawShows)) {
-      console.error('No top-rated shows data found or data is not an array from TVDB.');
-      return [];
+      throw new NotFoundError('No top-rated shows found from TVDB, or data format is incorrect.');
     }
 
     const transformedShows = rawShows
@@ -295,8 +388,21 @@ export const getTopRatedShows = async (): Promise<any[]> => {
 
     return transformedShows;
   } catch (error: any) {
-    console.error('Error fetching top-rated shows from TVDB:', error.message);
-    return [];
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        throw new NotFoundError('Top-rated shows endpoint not found on TVDB.');
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching top-rated shows. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError('Rate limited by TVDB API fetching top-rated shows.');
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching top-rated shows: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching top-rated shows: ${error.message}`);
   }
 };
 
@@ -310,8 +416,7 @@ export const getGenres = async (): Promise<string[]> => {
     const rawGenres = response.data?.data;
 
     if (!rawGenres || !Array.isArray(rawGenres)) {
-      console.error('No genres data found or data is not an array from TVDB.');
-      return [];
+      throw new NotFoundError('No genres found from TVDB, or data format is incorrect.');
     }
 
     const transformedGenres = rawGenres
@@ -320,7 +425,20 @@ export const getGenres = async (): Promise<string[]> => {
 
     return transformedGenres;
   } catch (error: any) {
-    console.error('Error fetching genres from TVDB:', error.message);
-    return []; // Return empty array on error
+    if (error instanceof NotFoundError) throw error;
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 404) {
+        throw new NotFoundError('Genres endpoint not found on TVDB.');
+      } else if (status === 401 || status === 403) {
+        throw new AuthenticationError(`TVDB authentication error (${status}) fetching genres. Check API key.`);
+      } else if (status === 429) {
+        throw new RateLimitError('Rate limited by TVDB API fetching genres.');
+      } else {
+        throw new UpstreamApiError(`TVDB API error (${status || 'Unknown'}) fetching genres: ${error.message}`);
+      }
+    }
+    throw new UpstreamApiError(`Unexpected error fetching genres: ${error.message}`);
   }
 };

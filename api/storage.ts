@@ -28,15 +28,15 @@ export const storage = {
   },
 
   // Show operations
-  getShowByTmdbId: async (tmdbId: number) => {
+  getShowByTvdbId: async (tvdbId: number) => {
     return await db.query.shows.findFirst({
-      where: eq(shows.tmdbId, tmdbId),
+      where: eq(shows.tvdbId, tvdbId),
     });
   },
 
   saveShow: async (showData: any) => {
     const existingShow = await db.query.shows.findFirst({
-      where: eq(shows.tmdbId, showData.tmdbId),
+      where: eq(shows.tvdbId, showData.tvdbId),
     });
 
     if (existingShow) {
@@ -80,24 +80,24 @@ export const storage = {
 
   saveSeasons: async (seasonData: any[]) => {
     const uniqueSeasons: any[] = [];
-    const seasonTmdbIds = new Set();
+    const seasonTvdbIds = new Set();
 
     for (const season of seasonData) {
-      if (!seasonTmdbIds.has(season.tmdbId)) {
+      if (!seasonTvdbIds.has(season.tvdbId)) {
         uniqueSeasons.push(season);
-        seasonTmdbIds.add(season.tmdbId);
+        seasonTvdbIds.add(season.tvdbId);
       }
     }
 
     if (uniqueSeasons.length === 0) return [];
 
     const existingSeasons = await db.query.seasons.findMany({
-      where: inArray(seasons.tmdbId, uniqueSeasons.map((s: any) => s.tmdbId)),
+      where: inArray(seasons.tvdbId, uniqueSeasons.map((s: any) => s.tvdbId)),
     });
 
-    const existingTmdbIds = new Set(existingSeasons.map((s: any) => s.tmdbId));
+    const existingTvdbIds = new Set(existingSeasons.map((s: any) => s.tvdbId));
 
-    const seasonsToCreate = uniqueSeasons.filter((s: any) => !existingTmdbIds.has(s.tmdbId));
+    const seasonsToCreate = uniqueSeasons.filter((s: any) => !existingTvdbIds.has(s.tvdbId));
 
     if (seasonsToCreate.length > 0) {
       return await db.insert(seasons).values(seasonsToCreate).returning();
@@ -116,24 +116,24 @@ export const storage = {
 
   saveEpisodes: async (episodeData: any[]) => {
     const uniqueEpisodes: any[] = [];
-    const episodeTmdbIds = new Set();
+    const episodeTvdbIds = new Set();
 
     for (const episode of episodeData) {
-      if (!episodeTmdbIds.has(episode.tmdbId)) {
+      if (!episodeTvdbIds.has(episode.tvdbId)) {
         uniqueEpisodes.push(episode);
-        episodeTmdbIds.add(episode.tmdbId);
+        episodeTvdbIds.add(episode.tvdbId);
       }
     }
 
     if (uniqueEpisodes.length === 0) return [];
 
     const existingEpisodes = await db.query.episodes.findMany({
-      where: inArray(episodes.tmdbId, uniqueEpisodes.map((e: any) => e.tmdbId)),
+      where: inArray(episodes.tvdbId, uniqueEpisodes.map((e: any) => e.tvdbId)),
     });
 
-    const existingTmdbIds = new Set(existingEpisodes.map((e: any) => e.tmdbId));
+    const existingTvdbIds = new Set(existingEpisodes.map((e: any) => e.tvdbId));
 
-    const episodesToCreate = uniqueEpisodes.filter((e: any) => !existingTmdbIds.has(e.tmdbId));
+    const episodesToCreate = uniqueEpisodes.filter((e: any) => !existingTvdbIds.has(e.tvdbId));
 
     if (episodesToCreate.length > 0) {
       return await db.insert(episodes).values(episodesToCreate).returning();

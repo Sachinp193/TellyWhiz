@@ -14,6 +14,7 @@ import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import pgSessionConnect from "connect-pg-simple";
+import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors.js';
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -145,9 +146,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const results = await tvdbClient.searchShows(query);
       res.json(results);
-    } catch (error) {
-      console.error("Search error:", error);
-      res.status(500).json({ message: "Failed to search shows" });
+    } catch (error: any) {
+      console.error(`Error in /api/search for query "${req.query.q}":`, error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Search results not found." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to search shows due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to search shows due to an internal server error." });
     }
   });
   
@@ -155,57 +169,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/shows/:id", async (req, res) => {
     try {
       const showId = parseInt(req.params.id);
-      
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
-      
       const show = await tvdbClient.getShowDetails(showId);
-      if (!show) {
-        return res.status(404).json({ message: "Show not found" });
-      }
       res.json(show);
-    } catch (error) {
-      console.error("Show details error:", error);
-      // Consider if the error from tvdb.getShowDetails might indicate a 404 itself
-      // For now, any error in the process is treated as a 500 unless explicitly handled above.
-      res.status(500).json({ message: "Failed to get show details" });
+    } catch (error: any) {
+      console.error(`Error in /api/shows/:id for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Show not found" });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get show details due to an upstream issue." });
+      } else if (error instanceof ZodError) { 
+        const formattedError = fromZodError(error); 
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get show details due to an internal server error." });
     }
   });
   
   app.get("/api/shows/:id/seasons", async (req, res) => {
     try {
       const showId = parseInt(req.params.id);
-      
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
-      
       const seasons = await tvdbClient.getSeasons(showId);
       res.json(seasons);
-    } catch (error) {
-      console.error("Seasons error:", error);
-      res.status(500).json({ message: "Failed to get seasons" });
+    } catch (error: any) {
+      console.error(`Error in /api/shows/:id/seasons for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Seasons not found for this show." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get seasons due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get seasons due to an internal server error." });
     }
   });
   
   app.get("/api/shows/:id/episodes", async (req, res) => {
     try {
       const showId = parseInt(req.params.id);
-      
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
-      
       let episodes = await tvdbClient.getEpisodes(showId);
       
       // If the user is authenticated, include watch status
       if (req.user) {
         const userId = (req.user as any).id;
         const userEpisodesResult = await db.query.userEpisodes.findMany({
-          where: eq(schema.userEpisodes.userId, userId),
+          where: and(
+            eq(schema.userEpisodes.userId, userId),
+            eq(schema.userEpisodes.showId, showId) // showId is already parsed as int
+          ),
           with: {
-            episode: true,
+            episode: true, // Kept for ue.episodeId, though ue.episode might not be strictly needed if episode.id is used for map
           },
         });
         
@@ -221,112 +253,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(episodes);
-    } catch (error) {
-      console.error("Episodes error:", error);
-      res.status(500).json({ message: "Failed to get episodes" });
+    } catch (error: any) {
+      console.error(`Error in /api/shows/:id/episodes for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Episodes not found for this show." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get episodes due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get episodes due to an internal server error." });
     }
   });
   
   app.get("/api/shows/:id/cast", async (req, res) => {
     try {
       const showId = parseInt(req.params.id);
-      
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
-      
       const cast = await tvdbClient.getCast(showId);
       res.json(cast);
-    } catch (error) {
-      console.error("Cast error:", error);
-      res.status(500).json({ message: "Failed to get cast" });
+    } catch (error: any) {
+      console.error(`Error in /api/shows/:id/cast for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Cast not found for this show." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get cast due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get cast due to an internal server error." });
     }
   });
   
   // Popular & Discovery APIs
   app.get("/api/shows/popular", async (req, res) => {
     try {
-      // Check if we have shows in the database
-      const existingShows = await storage.getPopularShows(5);
-      if (existingShows && existingShows.length > 0) {
-        const genre = req.query.genre as string | undefined;
-        const shows = await storage.getPopularShows(12, genre);
-        return res.json(shows);
-      }
-      
-      // If no shows in database, fetch them from TMDB
-      const popularDataResults = await tvdbClient.getPopularShows();
-      
-      // Process and save each show
-      const shows = await Promise.all(
-        popularDataResults.slice(0, 12).map(async (show: any) => {
-          // Get additional details
-          const details = await tvdbClient.getShowDetails(show.id);
-          return details;
+      // 1. Fetch initial list from TVDB (summaries)
+      const popularDataSummaries = await tvdbClient.getPopularShows();
+
+      // 2. Fetch full details for each show
+      // TODO: N+1 Query Pattern: The following block makes a separate API call for each show
+      // to get its full details. This is due to limitations in the TVDB API's list endpoints,
+      // which do not provide all necessary details (e.g., genres, status, rating) in a single call,
+      // and a batch show details endpoint is not confirmed to be available/suitable.
+      // This will be slow if popularDataSummaries is large.
+      const detailedShowsFromTvdb = await Promise.all(
+        popularDataSummaries.slice(0, 12).map(async (showSummary: any) => {
+          // Assuming getShowDetails is needed for full data.
+          return await tvdbClient.getShowDetails(showSummary.id);
         })
       );
-      
-      return res.json(shows);
-    } catch (error) {
-      console.error("Popular shows error:", error);
-      res.status(500).json({ message: "Failed to get popular shows" });
+
+      // 3. Save/Update each detailed show in the local database
+      for (const showData of detailedShowsFromTvdb) {
+        if (showData) { // Ensure showData is not null (e.g., if getShowDetails failed for one)
+          await storage.saveShow(showData);
+        }
+      }
+
+      // 4. Serve the final list from the database
+      const genre = req.query.genre as string | undefined;
+      const finalShowsToReturn = await storage.getPopularShows(12, genre);
+      res.json(finalShowsToReturn);
+
+    } catch (error: any) {
+      console.error("Error in /api/shows/popular:", error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Popular shows not found." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get popular shows due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get popular shows due to an internal server error." });
     }
   });
   
   app.get("/api/shows/recent", async (req, res) => {
     try {
-      // Check if we have shows in the database
-      const existingShows = await storage.getRecentShows(5);
-      if (existingShows && existingShows.length > 0) {
-        const shows = await storage.getRecentShows(12);
-        return res.json(shows);
-      }
-      
-      // If no shows in database, fetch them from TMDB
-      const airingDataResults = await tvdbClient.getRecentShows();
-      
-      // Process and save each show
-      const shows = await Promise.all(
-        airingDataResults.slice(0, 12).map(async (show: any) => {
-          // Get additional details
-          const details = await tvdbClient.getShowDetails(show.id);
-          return details;
+      // 1. Fetch initial list from TVDB (summaries)
+      const recentDataSummaries = await tvdbClient.getRecentShows();
+
+      // 2. Fetch full details for each show
+      // TODO: N+1 Query Pattern: Similar to the popular shows endpoint.
+      const detailedShowsFromTvdb = await Promise.all(
+        recentDataSummaries.slice(0, 12).map(async (showSummary: any) => {
+          return await tvdbClient.getShowDetails(showSummary.id);
         })
       );
-      
-      return res.json(shows);
-    } catch (error) {
-      console.error("Recent shows error:", error);
-      res.status(500).json({ message: "Failed to get recent shows" });
+
+      // 3. Save/Update each detailed show in the local database
+      for (const showData of detailedShowsFromTvdb) {
+        if (showData) {
+          await storage.saveShow(showData);
+        }
+      }
+
+      // 4. Serve the final list from the database
+      const finalShowsToReturn = await storage.getRecentShows(12);
+      res.json(finalShowsToReturn);
+
+    } catch (error: any) {
+      console.error("Error in /api/shows/recent:", error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Recent shows not found." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get recent shows due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get recent shows due to an internal server error." });
     }
   });
   
   app.get("/api/shows/top-rated", async (req, res) => {
     try {
-      // Check if we have shows in the database
-      const existingShows = await storage.getTopRatedShows(5);
-      if (existingShows && existingShows.length > 0) {
-        const genre = req.query.genre as string | undefined;
-        const shows = await storage.getTopRatedShows(12, genre);
-        return res.json(shows);
-      }
-      
-      // If no shows in database, fetch them from TMDB
-      const topRatedDataResults = await tvdbClient.getTopRatedShows();
-      
-      // Process and save each show
-      const shows = await Promise.all(
-        topRatedDataResults.slice(0, 12).map(async (show: any) => {
-          // Get additional details
-          const details = await tvdbClient.getShowDetails(show.id);
-          return details;
+      // 1. Fetch initial list from TVDB (summaries)
+      const topRatedDataSummaries = await tvdbClient.getTopRatedShows();
+
+      // 2. Fetch full details for each show
+      // TODO: N+1 Query Pattern: Similar to the popular shows endpoint.
+      const detailedShowsFromTvdb = await Promise.all(
+        topRatedDataSummaries.slice(0, 12).map(async (showSummary: any) => {
+          return await tvdbClient.getShowDetails(showSummary.id);
         })
       );
-      
-      return res.json(shows);
-    } catch (error) {
-      console.error("Top rated shows error:", error);
-      res.status(500).json({ message: "Failed to get top rated shows" });
+
+      // 3. Save/Update each detailed show in the local database
+      for (const showData of detailedShowsFromTvdb) {
+        if (showData) {
+          await storage.saveShow(showData);
+        }
+      }
+
+      // 4. Serve the final list from the database
+      const genre = req.query.genre as string | undefined;
+      const finalShowsToReturn = await storage.getTopRatedShows(12, genre);
+      res.json(finalShowsToReturn);
+
+    } catch (error: any) {
+      console.error("Error in /api/shows/top-rated:", error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Top-rated shows not found." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get top-rated shows due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get top-rated shows due to an internal server error." });
     }
   });
   
@@ -338,12 +444,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(dbGenres);
       }
       
-      // If not, fetch from TMDB
+      // If not, fetch from TVDB
       const genres = await tvdbClient.getGenres();
       return res.json(genres);
-    } catch (error) {
-      console.error("Genres error:", error);
-      res.status(500).json({ message: "Failed to get genres" });
+    } catch (error: any) {
+      console.error("Error in /api/genres:", error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message || "Genres not found." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to get genres due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to get genres due to an internal server error." });
     }
   });
   
@@ -411,22 +530,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify the show exists before attempting to track
-      const showExists = await tvdbClient.getShowDetails(showId);
-      if (!showExists) {
-        return res.status(404).json({ message: "Show not found, cannot track" });
+      const showDetailsFromTvdb = await tvdbClient.getShowDetails(showId);
+      // getShowDetails throws NotFoundError if not found, so no need for !showExists check here.
+      // The error will be caught by the generic error handler for the route.
+
+      // Before tracking, ensure show, seasons, and episodes are in the local DB
+      // 1. Save the show details first (this also ensures the show is in our DB)
+      // storage.saveShow is an upsert operation.
+      await storage.saveShow({
+        tvdbId: showDetailsFromTvdb.id, // Ensure field name matches schema expectation if different from tvdbClient
+        name: showDetailsFromTvdb.name,
+        overview: showDetailsFromTvdb.overview,
+        status: showDetailsFromTvdb.status,
+        firstAired: showDetailsFromTvdb.year, // Or firstAired if tvdbClient provides it directly
+        network: showDetailsFromTvdb.network, // Assuming network is available
+        runtime: showDetailsFromTvdb.runtime, // Assuming runtime is available
+        image: showDetailsFromTvdb.image,
+        banner: showDetailsFromTvdb.banner,
+        rating: showDetailsFromTvdb.rating,
+        genres: showDetailsFromTvdb.genres,
+        year: showDetailsFromTvdb.year,
+      });
+      
+      // 2. Fetch and Save Seasons
+      const seasonsFromTvdb = await tvdbClient.getSeasons(showId);
+      const seasonsToSave = seasonsFromTvdb.map((s: any) => ({
+        tvdbId: s.id,
+        showId: showId, // showId here is the TVDB ID of the show
+        number: s.number,
+        name: s.name,
+        overview: s.overview,
+        image: s.image,
+        episodes: s.episodeCount, 
+        year: s.year,
+      }));
+
+      const savedSeasons = await storage.saveSeasons(seasonsToSave);
+      const seasonNumberToDbIdMap = new Map();
+      savedSeasons.forEach(s => {
+        // storage.saveSeasons returns an array of seasons as they are in the DB, including their DB `id` and `number`.
+        // Ensure `s.number` and `s.id` are correct based on `storage.saveSeasons` return type.
+        if (s.number !== null && s.number !== undefined && s.id !== null && s.id !== undefined) {
+            seasonNumberToDbIdMap.set(s.number, s.id);
+        }
+      });
+
+      // 3. Fetch and Save Episodes
+      const episodesFromTvdb = await tvdbClient.getEpisodes(showId);
+      const episodesToSave = episodesFromTvdb.map((ep: any) => {
+        const dbSeasonId = seasonNumberToDbIdMap.get(ep.seasonNumber);
+        if (dbSeasonId === undefined) {
+          console.warn(`Could not find DB seasonId for show ${showId}, TVDB season number ${ep.seasonNumber}. Skipping episode TVDB ID ${ep.id}`);
+          return null; 
+        }
+        return {
+          tvdbId: ep.id,
+          showId: showId, // showId here is the TVDB ID of the show
+          seasonId: dbSeasonId, 
+          name: ep.name,
+          overview: ep.overview,
+          seasonNumber: ep.seasonNumber,
+          episodeNumber: ep.episodeNumber, 
+          firstAired: ep.aired,
+          runtime: ep.runtime,
+          image: ep.image,
+        };
+      }).filter(Boolean); 
+
+      if (episodesToSave.length > 0) {
+        await storage.saveEpisodes(episodesToSave as any[]); 
       }
       
+      // 4. Now, track the show for the user.
+      // storage.trackShow calculates totalEpisodes based on episodes in DB for this showId.
       const userShow = await storage.trackShow(userId, showId);
-      // Assuming trackShow itself could return null if the user-show link already exists
-      // or if there's another reason it didn't "newly" track.
-      // For a POST, typically we'd expect a 201 if created, or 200 if updated/already exists.
-      // If userShow is null meaning "already tracked and no change", a 200 or 204 might be suitable.
-      // If it implies an error, that should be handled by an exception.
-      // For now, sticking to returning the result.
       res.json(userShow);
-    } catch (error) {
-      console.error("Track show error:", error);
-      res.status(500).json({ message: "Failed to track show" });
+    } catch (error: any) {
+      console.error(`Error in /api/user/shows/:id/track for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) { // This would be from getShowDetails
+        return res.status(404).json({ message: error.message || "Show not found, cannot track." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to track show due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to track show due to an internal server error." });
     }
   });
   
@@ -438,25 +632,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(showId)) {
         return res.status(400).json({ message: "Invalid show ID" });
       }
-
-      // Optional: Verify the show exists before attempting to untrack.
-      // This depends on whether untracking a non-existent show or non-tracked show should be an error.
-      // Typically, DELETE is idempotent, so attempting to delete something not there isn't an error (204 or 200).
-      // However, if showId itself is invalid, that could be a 404.
-      const showExists = await tvdbClient.getShowDetails(showId);
-      if (!showExists) {
-        return res.status(404).json({ message: "Show not found, cannot untrack" });
-      }
       
-      // storage.untrackShow should ideally handle cases where the user-show link doesn't exist gracefully
-      // (e.g., by not throwing an error and still resulting in a "not tracked" state).
+      const showExists = await tvdbClient.getShowDetails(showId);
+      // No explicit check for !showExists as getShowDetails will throw NotFoundError
+      
       await storage.untrackShow(userId, showId);
-      // Consider if untrackShow could return a value indicating if something was actually deleted.
-      // If not, 204 No Content might be more appropriate if the operation guarantees the resource is gone.
-      res.json({ message: "Show untracked successfully" }); // 200 OK is also fine.
-    } catch (error) {
-      console.error("Untrack show error:", error);
-      res.status(500).json({ message: "Failed to untrack show" });
+      res.json({ message: "Show untracked successfully" });
+    } catch (error: any) {
+      console.error(`Error in /api/user/shows/:id/track (DELETE) for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) { // This would be from getShowDetails
+        return res.status(404).json({ message: error.message || "Show not found, cannot untrack." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to untrack show due to an upstream issue." });
+      } else if (error instanceof ZodError) {
+        const formattedError = fromZodError(error);
+        return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
+      }
+      return res.status(500).json({ message: "Failed to untrack show due to an internal server error." });
     }
   });
   
@@ -475,33 +672,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { favorite } = favoriteSchema.parse(req.body);
       
-      // Verify the show exists before attempting to favorite
-      const showExists = await tvdbClient.getShowDetails(showId);
-      if (!showExists) {
-        return res.status(404).json({ message: "Show not found, cannot update favorite status" });
-      }
+      // Verify the show exists by calling getShowDetails (it will throw if not found)
+      await tvdbClient.getShowDetails(showId); 
 
       // Also, ensure the user is tracking the show before favoriting
       const userShowExists = await storage.getUserShow(userId, showId);
       if (!userShowExists) {
-        return res.status(404).json({ message: "User is not tracking this show, cannot update favorite status" });
+        // This is a valid application-level "not found" for the user's tracking of the show
+        return res.status(404).json({ message: "User is not tracking this show, cannot update favorite status." });
       }
       
       const userShow = await storage.updateUserShow(userId, showId, { favorite });
-      // If updateUserShow returns null (e.g. user not tracking the show, or show doesn't exist)
-      // it might also warrant a 404, but the checks above should handle it.
-      if (!userShow) {
-        // This case should ideally be caught by the checks above or indicate a deeper issue.
-        return res.status(404).json({ message: "Failed to update favorite status, user show not found after update." });
-      }
+      // Assuming updateUserShow would throw or return error for DB issues, not for "not found" as that's checked.
       res.json(userShow);
-    } catch (error) {
-      if (error instanceof ZodError) {
+    } catch (error: any) {
+      console.error(`Error in /api/user/shows/:id/favorite for ID ${req.params.id}:`, error);
+
+      if (error instanceof NotFoundError) { // From getShowDetails if show itself doesn't exist
+        return res.status(404).json({ message: error.message || "Show not found, cannot update favorite status." });
+      } else if (error instanceof AuthenticationError) {
+        return res.status(502).json({ message: error.message || "Upstream authentication issue with data provider." });
+      } else if (error instanceof RateLimitError) {
+        return res.status(502).json({ message: error.message || "Upstream rate limit exceeded. Please try again later." });
+      } else if (error instanceof UpstreamApiError) {
+        return res.status(502).json({ message: error.message || "Failed to update favorite status due to an upstream issue." });
+      } else if (error instanceof ZodError) {
         const formattedError = fromZodError(error);
         return res.status(400).json({ message: "Invalid input", errors: formattedError.details });
       }
-      console.error("Favorite show error:", error);
-      res.status(500).json({ message: "Failed to update favorite status" });
+      // Default fallback for other types of errors (e.g., database errors from storage.updateUserShow)
+      return res.status(500).json({ message: "Failed to update favorite status due to an internal server error." });
     }
   });
   
