@@ -1,7 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { tmdbClient } from "./tmdb";
+// import { tmdbClient } from "./tmdb";
+import * as tvdbClient from './tvdb';
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
@@ -142,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Query must be at least 2 characters" });
       }
       
-      const results = await tmdbClient.searchShows(query);
+      const results = await tvdbClient.searchShows(query);
       res.json(results);
     } catch (error) {
       console.error("Search error:", error);
@@ -159,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid show ID" });
       }
       
-      const show = await tmdbClient.getShowDetails(showId);
+      const show = await tvdbClient.getShowDetails(showId);
       if (!show) {
         return res.status(404).json({ message: "Show not found" });
       }
@@ -180,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid show ID" });
       }
       
-      const seasons = await tmdbClient.getSeasons(showId);
+      const seasons = await tvdbClient.getSeasons(showId);
       res.json(seasons);
     } catch (error) {
       console.error("Seasons error:", error);
@@ -196,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid show ID" });
       }
       
-      let episodes = await tmdbClient.getEpisodes(showId);
+      let episodes = await tvdbClient.getEpisodes(showId);
       
       // If the user is authenticated, include watch status
       if (req.user) {
@@ -234,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid show ID" });
       }
       
-      const cast = await tmdbClient.getCast(showId);
+      const cast = await tvdbClient.getCast(showId);
       res.json(cast);
     } catch (error) {
       console.error("Cast error:", error);
@@ -254,13 +255,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const popularDataResults = await tmdbClient.getPopularShowsFromTMDB();
+      const popularDataResults = await tvdbClient.getPopularShows();
       
       // Process and save each show
       const shows = await Promise.all(
         popularDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
-          const details = await tmdbClient.getShowDetails(show.id);
+          const details = await tvdbClient.getShowDetails(show.id);
           return details;
         })
       );
@@ -282,13 +283,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const airingDataResults = await tmdbClient.getRecentShowsFromTMDB();
+      const airingDataResults = await tvdbClient.getRecentShows();
       
       // Process and save each show
       const shows = await Promise.all(
         airingDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
-          const details = await tmdbClient.getShowDetails(show.id);
+          const details = await tvdbClient.getShowDetails(show.id);
           return details;
         })
       );
@@ -311,13 +312,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If no shows in database, fetch them from TMDB
-      const topRatedDataResults = await tmdbClient.getTopRatedShowsFromTMDB();
+      const topRatedDataResults = await tvdbClient.getTopRatedShows();
       
       // Process and save each show
       const shows = await Promise.all(
         topRatedDataResults.slice(0, 12).map(async (show: any) => {
           // Get additional details
-          const details = await tmdbClient.getShowDetails(show.id);
+          const details = await tvdbClient.getShowDetails(show.id);
           return details;
         })
       );
@@ -338,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If not, fetch from TMDB
-      const genres = await tmdbClient.getGenresFromTMDB();
+      const genres = await tvdbClient.getGenres();
       return res.json(genres);
     } catch (error) {
       console.error("Genres error:", error);
@@ -410,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify the show exists before attempting to track
-      const showExists = await tmdbClient.getShowDetails(showId);
+      const showExists = await tvdbClient.getShowDetails(showId);
       if (!showExists) {
         return res.status(404).json({ message: "Show not found, cannot track" });
       }
@@ -442,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This depends on whether untracking a non-existent show or non-tracked show should be an error.
       // Typically, DELETE is idempotent, so attempting to delete something not there isn't an error (204 or 200).
       // However, if showId itself is invalid, that could be a 404.
-      const showExists = await tmdbClient.getShowDetails(showId);
+      const showExists = await tvdbClient.getShowDetails(showId);
       if (!showExists) {
         return res.status(404).json({ message: "Show not found, cannot untrack" });
       }
@@ -475,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { favorite } = favoriteSchema.parse(req.body);
       
       // Verify the show exists before attempting to favorite
-      const showExists = await tmdbClient.getShowDetails(showId);
+      const showExists = await tvdbClient.getShowDetails(showId);
       if (!showExists) {
         return res.status(404).json({ message: "Show not found, cannot update favorite status" });
       }
