@@ -7,8 +7,8 @@ import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import { db } from "@db";
-import * as schema from "@shared/schema"; // Changed to alias
+import { db } from "#db";
+import * as schema from "#shared/schema"; // Changed to alias
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";

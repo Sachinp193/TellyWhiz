@@ -1,4 +1,4 @@
-import { db } from "@db";
+import { db } from "#db";
 import { eq, and, desc, sql, isNull, asc, ne, or, inArray, isNotNull } from "drizzle-orm";
 import {
   users,
@@ -9,7 +9,7 @@ import {
   userEpisodes,
   userLists,
   listShows,
-} from "@shared/schema";
+} from "#shared/schema";
 
 export const storage = {
   // User operations

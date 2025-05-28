@@ -17,12 +17,15 @@
     "allowImportingTsExtensions": false,
     "moduleResolution": "bundler",
     "baseUrl": ".",
+    "outDir": "./dist",
+    "rootDir": ".",
     "types": ["node", "vite/client", "vitest/globals"],
     "paths": {
-      "@db": ["./db/index.ts"],
-      "@db/*": ["./db/*"],
-      "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
+      "#db": ["./db/index.ts"],
+      "#db/*": ["./db/*"],
+      "#shared/*": ["./shared/*"],
+      "#api/*": ["./api/*"],
+      "#client/*": ["./client/src/*"]
     }
   }
 }

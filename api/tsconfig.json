@@ -1,29 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "..",
-    "paths": {
-      "@db": ["./db/index.ts"],
-      "@db/*": ["./db/*"],
-      "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"],
-      "@api/*": ["./api/*"]
-    },
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "bundler",
-    "types": ["node", "vite/client", "vitest/globals"],
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "declarationMap": true,
-    "noEmit": false,
-    "outDir": "./dist",
-    "rootDir": "../"
+    "noEmit": false
   },
   "include": [
-    "./**/*.ts",
-    "../shared/**/*.ts"
+    "./**/*.ts"
   ],
   "exclude": [
     "./tests/**"
