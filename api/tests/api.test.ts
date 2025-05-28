@@ -76,7 +76,7 @@ import { storage } from '@api/storage.js'; // Changed to alias
 import { db } from '@db/index.js'; // Changed to alias
 import * as schema from '@shared/schema.js'; // Changed to alias
 import { eq, sql } from 'drizzle-orm';
-import { type SuperTest, type Test, type TestAgent, type Response } from 'supertest';
+import { type SuperTest, type Test, type Response } from 'supertest';
 
 // Interface for mock show data (previously defined)
 interface MockShow {
@@ -90,8 +90,8 @@ const registerUser = async (username: string, password?: string): Promise<Respon
   return request(app).post('/api/auth/register').send({ username, password });
 };
 
-const loginUser = async (username: string, password?: string): Promise<TestAgent> => {
-  const agent: TestAgent = request.agent(app);
+const loginUser = async (username: string, password?: string): Promise<SuperTest<Test>> => {
+  const agent: SuperTest<Test> = request.agent(app);
   await agent.post('/api/auth/login').send({ username, password });
   return agent;
 };
@@ -150,7 +150,7 @@ describe('GET /api/search', () => {
 describe('POST /api/user/shows/:id/track', () => {
   const testUser = { username: 'trackerUser', password: 'password123' };
   let userId: number | undefined;
-  let authenticatedAgent: TestAgent;
+  let authenticatedAgent: SuperTest<Test>;
   type ShowInsertType = typeof schema.shows.$inferInsert;
 
   const showToTrack: ShowInsertType = {
