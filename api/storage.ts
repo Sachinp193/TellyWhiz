@@ -9,7 +9,7 @@ import {
   userEpisodes,
   userLists,
   listShows,
-} from "@shared/schema.js";
+} from "@shared/schema";
 
 export const storage = {
   // User operations

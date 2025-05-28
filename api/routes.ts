@@ -8,13 +8,13 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import { db } from "@db";
-import * as schema from "@shared/schema.js"; // Changed to alias
+import * as schema from "@shared/schema"; // Changed to alias
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import pgSessionConnect from "connect-pg-simple";
-import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors.js'; // Added .js
+import { NotFoundError, UpstreamApiError, AuthenticationError, RateLimitError } from './errors'; // Added .js
 
 // Auth middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
