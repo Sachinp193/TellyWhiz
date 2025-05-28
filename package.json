@@ -115,7 +115,7 @@
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
-    "tscpaths": "^5.0.0",
+    "tscpaths": "^0.0.9",
     "vite": "^6.3.4",
     "vitest": "^1.5.0"
   },
