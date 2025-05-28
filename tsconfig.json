@@ -1,6 +1,6 @@
 {
   "include": ["client/src/**/*", "db/**/*", "api/**/*", "shared/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "api/tests"],
+  "exclude": ["node_modules", "build", "**/*.test.ts", "api/tests", "client/dist"],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
@@ -17,7 +17,7 @@
     "allowImportingTsExtensions": false,
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "outDir": "./dist",
+    "outDir": ".",
     "rootDir": ".",
     "types": ["node", "vite/client", "vitest/globals"],
     "paths": {
