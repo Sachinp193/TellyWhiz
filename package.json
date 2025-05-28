@@ -11,7 +11,7 @@
   "dev": "npm run build-frontend && npm run build-backend && concurrently \"vite\" \"nodemon --watch api --exec ts-node api/index.ts\"",
   "build": "npm run build-frontend && npm run build-backend && echo 'Contents of api/dist after backend build:' && ls -R api/dist", 
   "build-frontend": "vite build", 
-  "build-backend": "rm -rf api/dist && tsc --project api/tsconfig.json --outDir api/dist --diagnostics --extendedDiagnostics --listEmittedFiles && tscpaths -p api/tsconfig.json -s ./api/dist -o ./api/dist", 
+  "build-backend": "rm -rf api/dist && rm -f ./node_modules/typescript/tsbuildinfo && tsc --project api/tsconfig.json --outDir api/dist --diagnostics --extendedDiagnostics --listEmittedFiles && tscpaths -p api/tsconfig.json -s ./api/dist -o ./api/dist", 
   "db:migrate": "drizzle-kit migrate --config=./drizzle.config.ts",
   "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
   "db:studio": "drizzle-kit studio --config=./drizzle.config.ts",
