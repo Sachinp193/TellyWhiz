@@ -1,19 +1,18 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    // Explicitly set options to guide Vercel's tsc pass
-    "baseUrl": "..", // Set baseUrl to project root for path aliases
+    "baseUrl": "..",
     "paths": {
-      "@db": ["./db/index.ts"], // Paths are now relative to project root (due to baseUrl)
+      "@db": ["./db/index.ts"],
       "@db/*": ["./db/*"],
-      "@/*": ["./client/src/*"], // This might not be needed for API but harmless
+      "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
       "@api/*": ["./api/*"]
     },
     "module": "ESNext",
-    "target": "ESNext", // Or "ES2022"
-    "moduleResolution": "bundler", // Or "NodeNext"
-    "types": ["node", "vite/client"], // To help with Vite/Vitest types
+    "target": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "vite/client"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
@@ -22,10 +21,10 @@
     "rootDir": "../"
   },
   "include": [
-    "./**/*.ts",        // To capture all TS files within the api/ directory
-    "../shared/**/*.ts" // To capture shared files from project root
+    "./**/*.ts",
+    "../shared/**/*.ts"
   ],
   "exclude": [
-    "./tests/**"       // To exclude the api/tests/ directory
+    "./tests/**"
   ]
 }
